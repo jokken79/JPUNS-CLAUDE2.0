@@ -15,10 +15,10 @@ from app.core.database import Base
 # ============================================
 
 class UserRole(str, enum.Enum):
-    SUPER_ADMIN = "super_admin"
-    ADMIN = "admin"
-    COORDINATOR = "coordinator"
-    EMPLOYEE = "employee"
+    SUPER_ADMIN = "SUPER_ADMIN"
+    ADMIN = "ADMIN"
+    COORDINATOR = "COORDINATOR"
+    EMPLOYEE = "EMPLOYEE"
 
 
 class CandidateStatus(str, enum.Enum):
@@ -67,7 +67,7 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(100), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(SQLEnum(UserRole), nullable=False, default=UserRole.EMPLOYEE)
+    role = Column(SQLEnum(UserRole, name='user_role'), nullable=False, default=UserRole.EMPLOYEE)
     full_name = Column(String(100))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -261,7 +261,7 @@ class Candidate(Base):
     address = Column(Text)
 
     # Status & Audit Fields
-    status = Column(SQLEnum(CandidateStatus), default=CandidateStatus.PENDING)
+    status = Column(SQLEnum(CandidateStatus, name='candidate_status'), default=CandidateStatus.PENDING)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     approved_by = Column(Integer, ForeignKey("users.id"))
@@ -277,7 +277,7 @@ class Document(Base):
     id = Column(Integer, primary_key=True, index=True)
     candidate_id = Column(Integer, ForeignKey("candidates.id", ondelete="CASCADE"))
     employee_id = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"))
-    document_type = Column(SQLEnum(DocumentType), nullable=False)
+    document_type = Column(SQLEnum(DocumentType, name='document_type'), nullable=False)
     file_name = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
     file_size = Column(Integer)
@@ -428,7 +428,7 @@ class TimerCard(Base):
     holiday_hours = Column(Numeric(5, 2), default=0)
 
     # Shift type
-    shift_type = Column(SQLEnum(ShiftType))
+    shift_type = Column(SQLEnum(ShiftType, name='shift_type'))
 
     # Notes
     notes = Column(Text)
@@ -489,8 +489,8 @@ class Request(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     employee_id = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
-    request_type = Column(SQLEnum(RequestType), nullable=False)
-    status = Column(SQLEnum(RequestStatus), default=RequestStatus.PENDING)
+    request_type = Column(SQLEnum(RequestType, name='request_type'), nullable=False)
+    status = Column(SQLEnum(RequestStatus, name='request_status'), default=RequestStatus.PENDING)
 
     # Dates
     start_date = Column(Date, nullable=False)

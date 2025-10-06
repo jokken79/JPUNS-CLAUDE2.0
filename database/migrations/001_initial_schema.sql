@@ -12,7 +12,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ENUM TYPES
 -- ============================================
 
-CREATE TYPE user_role AS ENUM ('super_admin', 'admin', 'coordinator', 'employee');
+CREATE TYPE user_role AS ENUM ('SUPER_ADMIN', 'ADMIN', 'COORDINATOR', 'EMPLOYEE');
 CREATE TYPE candidate_status AS ENUM ('pending', 'approved', 'rejected', 'hired');
 CREATE TYPE document_type AS ENUM ('rirekisho', 'zairyu_card', 'license', 'contract', 'other');
 CREATE TYPE request_type AS ENUM ('yukyu', 'hankyu', 'ikkikokoku', 'taisha');
@@ -29,7 +29,7 @@ CREATE TABLE users (
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role user_role NOT NULL DEFAULT 'employee',
+    role user_role NOT NULL DEFAULT 'EMPLOYEE',
     full_name VARCHAR(100),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -264,7 +264,7 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECU
 -- ============================================
 
 INSERT INTO users (username, email, password_hash, role, full_name) VALUES
-('admin', 'admin@uns-kikaku.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYIbW4t.5u2', 'super_admin', 'System Administrator');
+('admin', 'admin@uns-kikaku.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYIbW4t.5u2', 'SUPER_ADMIN', 'System Administrator');
 
 CREATE SEQUENCE rirekisho_id_seq START 1000;
 CREATE SEQUENCE factory_id_seq START 1;
