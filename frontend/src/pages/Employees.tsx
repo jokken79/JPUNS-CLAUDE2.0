@@ -48,7 +48,7 @@ const Employees: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const pageSize = 20;
+  const pageSize = 500; // Mostrar hasta 500 empleados por página
 
   useEffect(() => {
     fetchEmployees();

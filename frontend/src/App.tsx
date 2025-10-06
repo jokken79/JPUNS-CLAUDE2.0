@@ -15,6 +15,7 @@ import Factories from './pages/Factories';
 import TimerCards from './pages/TimerCards';
 import Salary from './pages/Salary';
 import Requests from './pages/Requests';
+import ImportData from './pages/ImportData';
 
 // Components
 import Layout from './components/Layout';
@@ -78,6 +79,7 @@ function App() {
           <Route path="timer-cards" element={<TimerCards />} />
           <Route path="salary" element={<Salary />} />
           <Route path="requests" element={<Requests />} />
+          <Route path="import-data" element={<ImportData />} />
         </Route>
         
         {/* 404 */}

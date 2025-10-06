@@ -24,7 +24,7 @@ class EmployeeBase(BaseModel):
 
 class EmployeeCreate(EmployeeBase):
     """Create employee from candidate"""
-    uns_id: str
+    rirekisho_id: str  # Changed from uns_id
     factory_id: str
     hakensaki_shain_id: Optional[str] = None
     hire_date: date
@@ -58,12 +58,13 @@ class EmployeeResponse(EmployeeBase):
     """Employee response"""
     id: int
     hakenmoto_id: int
-    uns_id: Optional[str]
+    rirekisho_id: Optional[str]  # Changed from uns_id
     factory_id: Optional[str]
     factory_name: Optional[str] = None  # Nombre de la fábrica
     hakensaki_shain_id: Optional[str]
-    hire_date: date
+    hire_date: Optional[date]  # Puede ser NULL
     jikyu: int
+    photo_url: Optional[str] = None  # Added photo
     position: Optional[str]
     contract_type: Optional[str]
 

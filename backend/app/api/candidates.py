@@ -22,42 +22,44 @@ from app.services.ocr_service import ocr_service
 router = APIRouter()
 
 
-def generate_uns_id(db: Session) -> str:
-    """Generate next UNS ID"""
+def generate_rirekisho_id(db: Session) -> str:
+    """Generate next Rirekisho ID"""
     # Get last candidate
     last_candidate = db.query(Candidate).order_by(Candidate.id.desc()).first()
-    
-    if last_candidate and last_candidate.uns_id:
+
+    if last_candidate and hasattr(last_candidate, 'rirekisho_id') and last_candidate.rirekisho_id:
         # Extract number from UNS-XXXX
-        last_num = int(last_candidate.uns_id.split('-')[1])
+        last_num = int(last_candidate.rirekisho_id.split('-')[1])
         next_num = last_num + 1
     else:
-        next_num = settings.RIREKISHO_ID_START
-    
-    return f"{settings.RIREKISHO_ID_PREFIX}{next_num}"
+        next_num = getattr(settings, 'RIREKISHO_ID_START', 1)
+
+    prefix = getattr(settings, 'RIREKISHO_ID_PREFIX', 'UNS-')
+    return f"{prefix}{next_num}"
 
 
 @router.post("/", response_model=CandidateResponse, status_code=status.HTTP_201_CREATED)
 async def create_candidate(
     candidate: CandidateCreate,
-    current_user: User = Depends(auth_service.require_role("admin")),
+    current_user: User = Depends(auth_service.get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
-    Create new candidate
+    Create new candidate from rirekisho (履歴書)
     """
-    # Generate UNS ID
-    uns_id = generate_uns_id(db)
-    
+    # Generate Rirekisho ID
+    rirekisho_id = generate_rirekisho_id(db)
+
+    # Create candidate with all rirekisho fields
     new_candidate = Candidate(
-        uns_id=uns_id,
-        **candidate.model_dump()
+        rirekisho_id=rirekisho_id,
+        **candidate.model_dump(exclude_unset=True)
     )
-    
+
     db.add(new_candidate)
     db.commit()
     db.refresh(new_candidate)
-    
+
     return new_candidate
 
 
@@ -83,7 +85,8 @@ async def list_candidates(
         query = query.filter(
             (Candidate.full_name_kanji.ilike(f"%{search}%")) |
             (Candidate.full_name_kana.ilike(f"%{search}%")) |
-            (Candidate.uns_id.ilike(f"%{search}%"))
+            (Candidate.full_name_roman.ilike(f"%{search}%")) |
+            (Candidate.rirekisho_id.ilike(f"%{search}%"))
         )
     
     # Get total count

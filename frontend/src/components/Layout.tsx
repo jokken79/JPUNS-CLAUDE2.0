@@ -10,7 +10,8 @@ import {
   UserPlusIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  ArrowUpTrayIcon
 } from '@heroicons/react/24/outline';
 
 const Layout: React.FC = () => {
@@ -20,9 +21,10 @@ const Layout: React.FC = () => {
 
   const navigation = [
     { name: 'ダッシュボード', href: '/dashboard', icon: HomeIcon },
-    { name: '候補者管理', href: '/candidates', icon: UserPlusIcon },
+    { name: '履歴書管理', href: '/candidates', icon: UserPlusIcon },
     { name: '従業員管理', href: '/employees', icon: UserGroupIcon },
     { name: '従業員管理（詳細）', href: '/employees-extended', icon: UserGroupIcon },
+    { name: 'データインポート', href: '/import-data', icon: ArrowUpTrayIcon },
     { name: '企業管理', href: '/factories', icon: BuildingOfficeIcon },
     { name: 'タイムカード', href: '/timer-cards', icon: ClockIcon },
     { name: '給与計算', href: '/salary', icon: CurrencyYenIcon },

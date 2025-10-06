@@ -75,19 +75,192 @@ class User(Base):
 
 
 class Candidate(Base):
+    """履歴書 (Rirekisho) - Resume/CV Table with complete fields"""
     __tablename__ = "candidates"
 
+    # Primary Key & IDs
     id = Column(Integer, primary_key=True, index=True)
-    uns_id = Column(String(20), unique=True, nullable=False, index=True)
-    full_name_kanji = Column(String(100))
-    full_name_kana = Column(String(100))
-    date_of_birth = Column(Date)
-    gender = Column(String(10))
-    nationality = Column(String(50))
-    address = Column(Text)
-    phone = Column(String(20))
+    rirekisho_id = Column(String(20), unique=True, nullable=False, index=True)  # 履歴書ID (formerly uns_id)
+
+    # 受付日・来日 (Reception & Arrival Dates)
+    reception_date = Column(Date)  # 受付日
+    arrival_date = Column(Date)  # 来日
+
+    # 基本情報 (Basic Information)
+    full_name_kanji = Column(String(100))  # 氏名
+    full_name_kana = Column(String(100))  # フリガナ
+    full_name_roman = Column(String(100))  # 氏名（ローマ字)
+    gender = Column(String(10))  # 性別
+    date_of_birth = Column(Date)  # 生年月日
+    photo_url = Column(String(255))  # 写真
+    nationality = Column(String(50))  # 国籍
+    marital_status = Column(String(20))  # 配偶者
+    hire_date = Column(Date)  # 入社日
+
+    # 住所情報 (Address Information)
+    postal_code = Column(String(10))  # 郵便番号
+    current_address = Column(Text)  # 現住所
+    address_banchi = Column(String(100))  # 番地
+    building_name = Column(String(100))  # 物件名
+    registered_address = Column(Text)  # 登録住所
+
+    # 連絡先 (Contact Information)
+    phone = Column(String(20))  # 電話番号
+    mobile = Column(String(20))  # 携帯電話
+
+    # パスポート情報 (Passport Information)
+    passport_number = Column(String(50))  # パスポート番号
+    passport_expiry = Column(Date)  # パスポート期限
+
+    # 在留カード情報 (Residence Card Information)
+    residence_status = Column(String(50))  # 在留資格
+    residence_expiry = Column(Date)  # （在留カード記載）在留期限
+    residence_card_number = Column(String(50))  # 在留カード番号
+
+    # 運転免許情報 (Driver's License Information)
+    license_number = Column(String(50))  # 運転免許番号及び条件
+    license_expiry = Column(Date)  # 運転免許期限
+    car_ownership = Column(String(10))  # 自動車所有
+    voluntary_insurance = Column(String(10))  # 任意保険加入
+
+    # 資格・免許 (Qualifications & Licenses)
+    forklift_license = Column(String(10))  # ﾌｫｰｸﾘﾌﾄ免許
+    tama_kake = Column(String(10))  # 玉掛
+    mobile_crane_under_5t = Column(String(10))  # 移動式ｸﾚｰﾝ運転士(5ﾄﾝ未満)
+    mobile_crane_over_5t = Column(String(10))  # 移動式ｸﾚｰﾝ運転士(5ﾄﾝ以上)
+    gas_welding = Column(String(10))  # ｶﾞｽ溶接作業者
+
+    # 家族構成 (Family Members) - Member 1
+    family_name_1 = Column(String(100))  # 家族構成氏名1
+    family_relation_1 = Column(String(50))  # 家族構成続柄1
+    family_age_1 = Column(Integer)  # 年齢1
+    family_residence_1 = Column(String(50))  # 居住1
+    family_separate_address_1 = Column(Text)  # 別居住住所1
+
+    # 家族構成 - Member 2
+    family_name_2 = Column(String(100))  # 家族構成氏名2
+    family_relation_2 = Column(String(50))  # 家族構成続柄2
+    family_age_2 = Column(Integer)  # 年齢2
+    family_residence_2 = Column(String(50))  # 居住2
+    family_separate_address_2 = Column(Text)  # 別居住住所2
+
+    # 家族構成 - Member 3
+    family_name_3 = Column(String(100))  # 氏名3
+    family_relation_3 = Column(String(50))  # 家族構成続柄3
+    family_age_3 = Column(Integer)  # 年齢3
+    family_residence_3 = Column(String(50))  # 居住3
+    family_separate_address_3 = Column(Text)  # 別居住住所3
+
+    # 家族構成 - Member 4
+    family_name_4 = Column(String(100))  # 家族構成氏名4
+    family_relation_4 = Column(String(50))  # 家族構成続柄4
+    family_age_4 = Column(Integer)  # 年齢4
+    family_residence_4 = Column(String(50))  # 居住4
+    family_separate_address_4 = Column(Text)  # 別居住住所4
+
+    # 家族構成 - Member 5
+    family_name_5 = Column(String(100))  # 家族構成氏名5
+    family_relation_5 = Column(String(50))  # 家族構成続柄5
+    family_age_5 = Column(Integer)  # 年齢5
+    family_residence_5 = Column(String(50))  # 居住5
+    family_separate_address_5 = Column(Text)  # 別居住住所5
+
+    # 職歴 (Work History) - Entry 7 (as per your column list)
+    work_history_company_7 = Column(String(200))  # 家族構成社社7
+    work_history_entry_company_7 = Column(String(200))  # 職歴入社会社名7
+    work_history_exit_company_7 = Column(String(200))  # 職歴退社会社名7
+
+    # 経験作業 (Work Experience)
+    exp_nc_lathe = Column(String(10))  # NC旋盤
+    exp_lathe = Column(String(10))  # 旋盤
+    exp_press = Column(String(10))  # ﾌﾟﾚｽ
+    exp_forklift = Column(String(10))  # ﾌｫｰｸﾘﾌﾄ
+    exp_packing = Column(String(10))  # 梱包
+    exp_welding = Column(String(10))  # 溶接
+    exp_car_assembly = Column(String(10))  # 車部品組立
+    exp_car_line = Column(String(10))  # 車部品ライン
+    exp_car_inspection = Column(String(10))  # 車部品検査
+    exp_electronic_inspection = Column(String(10))  # 電子部品検査
+    exp_food_processing = Column(String(10))  # 食品加工
+    exp_casting = Column(String(10))  # 鋳造
+    exp_line_leader = Column(String(10))  # ラインリーダー
+    exp_painting = Column(String(10))  # 塗装
+    exp_other = Column(Text)  # その他
+
+    # お弁当 (Lunch/Bento Options)
+    bento_lunch_dinner = Column(String(10))  # お弁当　昼/夜
+    bento_lunch_only = Column(String(10))  # お弁当　昼のみ
+    bento_dinner_only = Column(String(10))  # お弁当　夜のみ
+    bento_bring_own = Column(String(10))  # お弁当　持参
+
+    # 通勤 (Commute)
+    commute_method = Column(String(50))  # 通勤方法
+    commute_time_oneway = Column(Integer)  # 通勤片道時間
+
+    # 面接・検査 (Interview & Tests)
+    interview_result = Column(String(20))  # 面接結果OK
+    antigen_test_kit = Column(String(20))  # 簡易抗原検査キット
+    antigen_test_date = Column(Date)  # 簡易抗原検査実施日
+    covid_vaccine_status = Column(String(50))  # コロナワクチン予防接種状態
+
+    # 語学スキル (Language Skills)
+    language_skill_exists = Column(String(10))  # 語学スキル有無
+    language_skill_1 = Column(String(100))  # 語学スキル有無１
+    language_skill_2 = Column(String(100))  # 語学スキル有無2
+
+    # 日本語能力 (Japanese Language Ability)
+    japanese_qualification = Column(String(50))  # 日本語能力資格
+    japanese_level = Column(String(10))  # 日本語能力資格Level
+    jlpt_taken = Column(String(10))  # 能力試験受験
+    jlpt_date = Column(Date)  # 能力試験受験日付
+    jlpt_score = Column(Integer)  # 能力試験受験点数
+    jlpt_scheduled = Column(String(10))  # 能力試験受験受験予定
+
+    # 有資格 (Qualifications)
+    qualification_1 = Column(String(100))  # 有資格取得
+    qualification_2 = Column(String(100))  # 有資格取得1
+    qualification_3 = Column(String(100))  # 有資格取得2
+
+    # 学歴 (Education)
+    major = Column(String(100))  # 専攻
+
+    # 身体情報 (Physical Information)
+    blood_type = Column(String(5))  # 血液型
+    dominant_hand = Column(String(10))  # 利き腕
+    allergy_exists = Column(String(10))  # アレルギー有無
+
+    # 日本語能力詳細 (Japanese Ability Details)
+    listening_level = Column(String(20))  # 聞く選択
+    speaking_level = Column(String(20))  # 話す選択
+
+    # 緊急連絡先 (Emergency Contact)
+    emergency_contact_name = Column(String(100))  # 緊急連絡先　氏名
+    emergency_contact_relation = Column(String(50))  # 緊急連絡先　続柄
+    emergency_contact_phone = Column(String(20))  # 緊急連絡先　電話番号
+
+    # 作業用品 (Work Equipment)
+    safety_shoes = Column(String(10))  # 安全靴
+
+    # 読み書き能力 (Reading & Writing Ability)
+    read_katakana = Column(String(20))  # 読む　カナ
+    read_hiragana = Column(String(20))  # 読む　ひら
+    read_kanji = Column(String(20))  # 読む　漢字
+    write_katakana = Column(String(20))  # 書く　カナ
+    write_hiragana = Column(String(20))  # 書く　ひら
+    write_kanji = Column(String(20))  # 書く　漢字氏名3
+
+    # 会話能力 (Conversation Ability)
+    can_speak = Column(String(20))  # 会話ができる
+    can_understand = Column(String(20))  # 会話が理解できる
+    can_read_kana = Column(String(20))  # ひらがな・カタカナ読める
+    can_write_kana = Column(String(20))  # ひらがな・カタカナ書け
+
+    # Legacy fields for compatibility
     email = Column(String(100))
-    photo_url = Column(String(255))
+    phone = Column(String(20))
+    address = Column(Text)
+
+    # Status & Audit Fields
     status = Column(SQLEnum(CandidateStatus), default=CandidateStatus.PENDING)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -157,13 +330,14 @@ class Employee(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     hakenmoto_id = Column(Integer, unique=True, nullable=False, index=True)
-    uns_id = Column(String(20), ForeignKey("candidates.uns_id"))
+    rirekisho_id = Column(String(20), ForeignKey("candidates.rirekisho_id"))  # Changed from uns_id
     factory_id = Column(String(20), ForeignKey("factories.factory_id"))
     hakensaki_shain_id = Column(String(50))
 
     # Personal information
     full_name_kanji = Column(String(100), nullable=False)
     full_name_kana = Column(String(100))
+    photo_url = Column(String(255))  # Photo from candidate
     date_of_birth = Column(Date)
     gender = Column(String(10))
     nationality = Column(String(50))
