@@ -8,6 +8,8 @@ import Dashboard from './pages/Dashboard';
 import Candidates from './pages/Candidates';
 import CandidateForm from './pages/CandidateForm';
 import Employees from './pages/Employees';
+import EmployeesExtended from './pages/EmployeesExtended';
+import EmployeeDetail from './pages/EmployeeDetail';
 import EmployeeForm from './pages/EmployeeForm';
 import Factories from './pages/Factories';
 import TimerCards from './pages/TimerCards';
@@ -68,8 +70,10 @@ function App() {
           <Route path="candidates/new" element={<CandidateForm />} />
           <Route path="candidates/:id" element={<CandidateForm />} />
           <Route path="employees" element={<Employees />} />
+          <Route path="employees-extended" element={<EmployeesExtended />} />
           <Route path="employees/new" element={<EmployeeForm />} />
-          <Route path="employees/:id" element={<EmployeeForm />} />
+          <Route path="employees/:id" element={<EmployeeDetail />} />
+          <Route path="employees/:id/edit" element={<EmployeeForm />} />
           <Route path="factories" element={<Factories />} />
           <Route path="timer-cards" element={<TimerCards />} />
           <Route path="salary" element={<Salary />} />

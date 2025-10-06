@@ -58,25 +58,55 @@ class EmployeeResponse(EmployeeBase):
     """Employee response"""
     id: int
     hakenmoto_id: int
-    uns_id: str
-    factory_id: str
+    uns_id: Optional[str]
+    factory_id: Optional[str]
+    factory_name: Optional[str] = None  # Nombre de la fábrica
     hakensaki_shain_id: Optional[str]
     hire_date: date
     jikyu: int
     position: Optional[str]
     contract_type: Optional[str]
+
+    # Financial
+    hourly_rate_charged: Optional[int]
+    profit_difference: Optional[int]
+    standard_compensation: Optional[int]
+    health_insurance: Optional[int]
+    nursing_insurance: Optional[int]
+    pension_insurance: Optional[int]
+    social_insurance_date: Optional[date]
+
+    # Visa and documents
+    visa_type: Optional[str]
+    license_type: Optional[str]
+    license_expire_date: Optional[date]
+    commute_method: Optional[str]
+    optional_insurance_expire: Optional[date]
+    japanese_level: Optional[str]
+    career_up_5years: Optional[bool]
+    entry_request_date: Optional[date]
+    photo_url: Optional[str]
+    notes: Optional[str]
+    postal_code: Optional[str]
+
+    # Apartment
     apartment_id: Optional[int]
     apartment_start_date: Optional[date]
+    apartment_move_out_date: Optional[date]
     apartment_rent: Optional[int]
+
+    # Yukyu
     yukyu_total: int
     yukyu_used: int
     yukyu_remaining: int
+
+    # Status
     is_active: bool
     termination_date: Optional[date]
     termination_reason: Optional[str]
     created_at: datetime
     updated_at: Optional[datetime]
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 

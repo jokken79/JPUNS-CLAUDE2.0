@@ -14,20 +14,29 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      // TODO: Implementar llamada a la API
-      // const response = await api.login(username, password);
-      
-      // Simulación temporal
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (username === 'admin' && password === 'admin123') {
-        localStorage.setItem('token', 'dummy-token');
-        localStorage.setItem('user', JSON.stringify({ username, role: 'super_admin' }));
-        toast.success('ログインに成功しました');
-        navigate('/dashboard');
-      } else {
-        toast.error('ユーザー名またはパスワードが正しくありません');
+      const params = new URLSearchParams();
+      params.append('username', username);
+      params.append('password', password);
+
+      const response = await fetch('http://localhost:8000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        toast.error(data.detail || 'ユーザー名またはパスワードが正しくありません');
+        setLoading(false);
+        return;
       }
+
+      const data = await response.json();
+      localStorage.setItem('token', data.access_token);
+      toast.success('ログインに成功しました');
+      navigate('/dashboard');
     } catch (error) {
       toast.error('ログインエラーが発生しました');
     } finally {

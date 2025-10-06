@@ -183,9 +183,32 @@ class Employee(Base):
     position = Column(String(100))
     contract_type = Column(String(50))
 
+    # Financial information
+    hourly_rate_charged = Column(Integer)  # 請求単価
+    profit_difference = Column(Integer)    # 差額利益
+    standard_compensation = Column(Integer)  # 標準報酬
+    health_insurance = Column(Integer)     # 健康保険
+    nursing_insurance = Column(Integer)    # 介護保険
+    pension_insurance = Column(Integer)    # 厚生年金
+    social_insurance_date = Column(Date)   # 社保加入日
+
+    # Visa and documents
+    visa_type = Column(String(50))         # ビザ種類
+    license_type = Column(String(100))     # 免許種類
+    license_expire_date = Column(Date)     # 免許期限
+    commute_method = Column(String(50))    # 通勤方法
+    optional_insurance_expire = Column(Date)  # 任意保険期限
+    japanese_level = Column(String(50))    # 日本語検定
+    career_up_5years = Column(Boolean, default=False)  # キャリアアップ5年目
+    entry_request_date = Column(Date)      # 入社依頼日
+    photo_url = Column(String(255))        # 写真URL
+    notes = Column(Text)                   # 備考
+    postal_code = Column(String(10))       # 郵便番号
+
     # Apartment
     apartment_id = Column(Integer, ForeignKey("apartments.id"))
     apartment_start_date = Column(Date)
+    apartment_move_out_date = Column(Date) # 退去日
     apartment_rent = Column(Integer)
 
     # Yukyu (有給休暇)

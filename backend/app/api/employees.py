@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.core.database import get_db
-from app.models.models import Employee, Candidate, User, CandidateStatus
+from app.models.models import Employee, Candidate, User, CandidateStatus, Factory
 from app.schemas.employee import (
     EmployeeCreate, EmployeeUpdate, EmployeeResponse,
     EmployeeTerminate, YukyuUpdate
@@ -49,7 +49,7 @@ async def create_employee(
     return new_employee
 
 
-@router.get("/", response_model=PaginatedResponse)
+@router.get("/")
 async def list_employees(
     page: int = 1,
     page_size: int = 20,
@@ -61,7 +61,7 @@ async def list_employees(
 ):
     """List all employees"""
     query = db.query(Employee)
-    
+
     if factory_id:
         query = query.filter(Employee.factory_id == factory_id)
     if is_active is not None:
@@ -71,12 +71,22 @@ async def list_employees(
             (Employee.full_name_kanji.ilike(f"%{search}%")) |
             (Employee.hakenmoto_id == search)
         )
-    
+
     total = query.count()
     employees = query.offset((page - 1) * page_size).limit(page_size).all()
-    
+
+    # Convert to response models and add factory name
+    items = []
+    for emp in employees:
+        emp_dict = EmployeeResponse.model_validate(emp).model_dump()
+        # Get factory name
+        if emp.factory_id:
+            factory = db.query(Factory).filter(Factory.factory_id == emp.factory_id).first()
+            emp_dict['factory_name'] = factory.name if factory else None
+        items.append(emp_dict)
+
     return {
-        "items": employees,
+        "items": items,
         "total": total,
         "page": page,
         "page_size": page_size,
@@ -84,7 +94,7 @@ async def list_employees(
     }
 
 
-@router.get("/{employee_id}", response_model=EmployeeResponse)
+@router.get("/{employee_id}")
 async def get_employee(
     employee_id: int,
     current_user: User = Depends(auth_service.get_current_active_user),
@@ -94,7 +104,14 @@ async def get_employee(
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
-    return employee
+
+    # Convert to dict and add factory name
+    emp_dict = EmployeeResponse.model_validate(employee).model_dump()
+    if employee.factory_id:
+        factory = db.query(Factory).filter(Factory.factory_id == employee.factory_id).first()
+        emp_dict['factory_name'] = factory.name if factory else None
+
+    return emp_dict
 
 
 @router.put("/{employee_id}", response_model=EmployeeResponse)

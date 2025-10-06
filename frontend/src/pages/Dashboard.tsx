@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import {
   UserGroupIcon,
   BuildingOfficeIcon,
@@ -14,7 +14,7 @@ const Dashboard: React.FC = () => {
   // Datos de ejemplo (luego vendrﾃ｡n de la API)
   const stats = [
     {
-      name: '蛟呵｣懆・ｷ乗焚',
+      name: '登録従業員数',
       value: '150',
       change: '+12',
       changeType: 'increase',
@@ -22,7 +22,7 @@ const Dashboard: React.FC = () => {
       color: 'bg-blue-500'
     },
     {
-      name: '謇ｿ隱榊ｾ・■',
+      name: '承認待ち',
       value: '12',
       change: '+3',
       changeType: 'increase',
@@ -30,7 +30,7 @@ const Dashboard: React.FC = () => {
       color: 'bg-yellow-500'
     },
     {
-      name: '蠕捺･ｭ蜩｡邱乗焚',
+      name: '後継技能者数',
       value: '320',
       change: '+8',
       changeType: 'increase',
@@ -38,7 +38,7 @@ const Dashboard: React.FC = () => {
       color: 'bg-green-500'
     },
     {
-      name: '遞ｼ蜒堺ｸｭ蠕捺･ｭ蜩｡',
+      name: '派遣中後継技能者',
       value: '305',
       change: '-2',
       changeType: 'decrease',
@@ -46,7 +46,7 @@ const Dashboard: React.FC = () => {
       color: 'bg-emerald-500'
     },
     {
-      name: '蟾･蝣ｴ謨ｰ',
+      name: '企業数',
       value: '20',
       change: '0',
       changeType: 'neutral',
@@ -54,7 +54,7 @@ const Dashboard: React.FC = () => {
       color: 'bg-purple-500'
     },
     {
-      name: '謇ｿ隱榊ｾ・■逕ｳ隲・,
+      name: '承認待ち申請',
       value: '8',
       change: '+2',
       changeType: 'increase',
@@ -62,16 +62,16 @@ const Dashboard: React.FC = () => {
       color: 'bg-orange-500'
     },
     {
-      name: '莉頑怦邨ｦ荳守ｷ城｡・,
-      value: 'ﾂ･45,000,000',
+      name: '今月給与支給額',
+      value: '¥45,000,000',
       change: '+5.2%',
       changeType: 'increase',
       icon: CurrencyYenIcon,
       color: 'bg-green-600'
     },
     {
-      name: '莉頑怦蛻ｩ逶・,
-      value: 'ﾂ･8,500,000',
+      name: '今月利益',
+      value: '¥8,500,000',
       change: '+3.8%',
       changeType: 'increase',
       icon: ArrowTrendingUpIcon,
@@ -82,22 +82,22 @@ const Dashboard: React.FC = () => {
   const alerts = [
     {
       id: 1,
-      employee: '螻ｱ逕ｰ螟ｪ驛・,
-      type: '蝨ｨ逡吶き繝ｼ繝画悄髯仙・繧・,
+      employee: '山田太郎',
+      type: '在留カード期限近づく',
       daysUntil: 28,
       severity: 'warning'
     },
     {
       id: 2,
-      employee: '菴占陸闃ｱ蟄・,
-      type: '譛臥ｵｦ谿区律謨ｰ荳崎ｶｳ',
+      employee: '佐藤花子',
+      type: '有給残日数不足',
       remaining: 2,
       severity: 'info'
     },
     {
       id: 3,
-      employee: '逕ｰ荳ｭ荳驛・,
-      type: '螂醍ｴ・峩譁ｰ莠亥ｮ・,
+      employee: '田中三郎',
+      type: '雇用契約更新必要',
       daysUntil: 45,
       severity: 'info'
     }
@@ -106,31 +106,31 @@ const Dashboard: React.FC = () => {
   const recentActivities = [
     {
       id: 1,
-      type: '蛟呵｣懆・匳骭ｲ',
-      description: '譁ｰ隕丞呵｣懆・碁斡譛ｨ蛛･螟ｪ縲阪ｒ逋ｻ骭ｲ縺励∪縺励◆',
-      time: '5蛻・燕',
-      user: '邂｡逅・・
+      type: '従業員登録',
+      description: '新規従業員「佐藤花子」を登録しました',
+      time: '5分前',
+      user: '管理者'
     },
     {
       id: 2,
-      type: '邨ｦ荳手ｨ育ｮ・,
-      description: '2025蟷ｴ3譛亥・縺ｮ邨ｦ荳手ｨ育ｮ励′螳御ｺ・＠縺ｾ縺励◆',
-      time: '1譎る俣蜑・,
-      user: '繧ｷ繧ｹ繝・Β'
+      type: '給与計算完了',
+      description: '2025年3月分の給与計算が完了しました',
+      time: '1時間前',
+      user: 'システム'
     },
     {
       id: 3,
-      type: '逕ｳ隲区価隱・,
-      description: '譛臥ｵｦ莨第嚊逕ｳ隲九ｒ謇ｿ隱阪＠縺ｾ縺励◆・亥ｱｱ逕ｰ螟ｪ驛趣ｼ・,
-      time: '2譎る俣蜑・,
-      user: '邂｡逅・・
+      type: '申請承認完了',
+      description: '有給休暇申請を承認しました（山田太郎）',
+      time: '2時間前',
+      user: '管理者'
     },
     {
       id: 4,
-      type: '繧ｿ繧､繝繧ｫ繝ｼ繝・,
-      description: 'Factory-01縺ｮ繧ｿ繧､繝繧ｫ繝ｼ繝峨ｒ繧｢繝・・繝ｭ繝ｼ繝峨＠縺ｾ縺励◆',
-      time: '3譎る俣蜑・,
-      user: '繧ｳ繝ｼ繝・ぅ繝阪・繧ｿ繝ｼ'
+      type: 'タイムカード',
+      description: 'Factory-01のタイムカードをアップロードしました',
+      time: '3時間前',
+      user: 'コーディネーター'
     }
   ];
 
@@ -139,21 +139,21 @@ const Dashboard: React.FC = () => {
       id: 'Factory-01',
       name: 'Toyota Aichi Factory',
       employees: 45,
-      profit: 'ﾂ･950,000',
+      profit: '¥950,000',
       margin: 18.5
     },
     {
       id: 'Factory-02',
       name: 'Honda Suzuka Factory',
       employees: 38,
-      profit: 'ﾂ･820,000',
+      profit: '¥820,000',
       margin: 17.2
     },
     {
       id: 'Factory-03',
       name: 'Nissan Yokohama',
       employees: 42,
-      profit: 'ﾂ･780,000',
+      profit: '¥780,000',
       margin: 16.8
     }
   ];
@@ -162,8 +162,8 @@ const Dashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">繝繝・す繝･繝懊・繝・/h1>
-        <p className="mt-2 text-gray-600">繧ｷ繧ｹ繝・Β縺ｮ讎りｦ√→譛霑代・繧｢繧ｯ繝・ぅ繝薙ユ繧｣</p>
+        <h1 className="text-3xl font-bold text-gray-900">ダッシュボード</h1>
+        <p className="mt-2 text-gray-600">システムの概要と最新のアクティビティ</p>
       </div>
 
       {/* Stats Grid */}
@@ -182,7 +182,7 @@ const Dashboard: React.FC = () => {
                   stat.changeType === 'decrease' ? 'text-red-600' :
                   'text-gray-600'
                 }`}>
-                  {stat.change} 莉頑怦
+                  {stat.change} 先月比
                 </p>
               </div>
               <div className={`${stat.color} rounded-xl p-3`}>
@@ -199,9 +199,10 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900 flex items-center">
               <ExclamationTriangleIcon className="h-6 w-6 mr-2 text-yellow-500" />
-              繧｢繝ｩ繝ｼ繝・            </h2>
+              アラート
+            </h2>
             <button className="text-sm text-primary-600 hover:text-primary-700 font-medium">
-              縺吶∋縺ｦ陦ｨ遉ｺ
+              すべて表示
             </button>
           </div>
           <div className="space-y-3">
@@ -217,12 +218,12 @@ const Dashboard: React.FC = () => {
                 <p className="text-sm text-gray-600 mt-1">{alert.type}</p>
                 {'daysUntil' in alert && (
                   <p className="text-sm text-gray-500 mt-1">
-                    縺ゅ→{alert.daysUntil}譌･
+                    あと{alert.daysUntil}日
                   </p>
                 )}
                 {'remaining' in alert && (
                   <p className="text-sm text-gray-500 mt-1">
-                    谿九ｊ{alert.remaining}譌･
+                    残り{alert.remaining}日
                   </p>
                 )}
               </div>
@@ -235,10 +236,10 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900 flex items-center">
               <ChartBarIcon className="h-6 w-6 mr-2 text-primary-500" />
-              譛霑代・繧｢繧ｯ繝・ぅ繝薙ユ繧｣
+              最新のアクティビティ
             </h2>
             <button className="text-sm text-primary-600 hover:text-primary-700 font-medium">
-              縺吶∋縺ｦ陦ｨ遉ｺ
+              すべて表示
             </button>
           </div>
           <div className="space-y-4">
@@ -253,7 +254,7 @@ const Dashboard: React.FC = () => {
                     {activity.description}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {activity.time} 窶｢ {activity.user}
+                    {activity.time} • {activity.user}
                   </p>
                 </div>
               </div>
@@ -267,10 +268,10 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-900 flex items-center">
             <ArrowTrendingUpIcon className="h-6 w-6 mr-2 text-green-500" />
-            蛻ｩ逶贋ｸ贋ｽ阪・蟾･蝣ｴ
+            利益率上位の企業
           </h2>
           <button className="text-sm text-primary-600 hover:text-primary-700 font-medium">
-            縺吶∋縺ｦ縺ｮ蟾･蝣ｴ繧定｡ｨ遉ｺ
+            すべての企業を表示
           </button>
         </div>
         <div className="overflow-x-auto">
@@ -278,17 +279,19 @@ const Dashboard: React.FC = () => {
             <thead>
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  蟾･蝣ｴID
+                  企業ID
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  蟾･蝣ｴ蜷・                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  蠕捺･ｭ蜩｡謨ｰ
+                  企業名
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  莉頑怦蛻ｩ逶・                </th>
+                  後継技能者数
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  蛻ｩ逶顔紫
+                  先月比利益
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  利益率
                 </th>
               </tr>
             </thead>
@@ -302,7 +305,8 @@ const Dashboard: React.FC = () => {
                     {factory.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {factory.employees}蜷・                  </td>
+                    {factory.employees}名
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
                     {factory.profit}
                   </td>
