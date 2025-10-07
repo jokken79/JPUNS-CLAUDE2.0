@@ -1,5 +1,5 @@
 """
-UNS-ClaudeJP 1.0 - Main FastAPI Application
+UNS-ClaudeJP 2.0 - Main FastAPI Application
 Sistema Integral de Gestión de Personal Temporal para UNS-Kikaku
 """
 from fastapi import FastAPI, Request
@@ -54,13 +54,29 @@ async def startup_event():
     """Startup event"""
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
-    
+
     # Initialize database
     try:
         init_db()
         logger.info("Database initialized successfully")
     except Exception as e:
         logger.error(f"Error initializing database: {e}")
+
+    # Initialize admin user
+    try:
+        from init_db import init_database
+        await init_database()
+    except Exception as e:
+        logger.error(f"Error initializing admin user: {e}")
+
+    # Warm-up bcrypt to avoid timeout on first login
+    try:
+        from app.services.auth_service import auth_service
+        # Do a dummy hash to initialize bcrypt (prevents 60s delay on first login)
+        _ = auth_service.get_password_hash("warmup")
+        logger.info("✅ Bcrypt warmed up successfully")
+    except Exception as e:
+        logger.error(f"Error warming up bcrypt: {e}")
 
 
 @app.on_event("shutdown")
@@ -117,7 +133,10 @@ async def internal_error_handler(request: Request, exc):
 
 
 # Import and include routers
-from app.api import auth, candidates, employees, factories, timer_cards, salary, requests, dashboard
+from app.api import (
+    auth, candidates, employees, factories, timer_cards, salary, requests, dashboard,
+    ocr, import_export, reports, notifications
+)
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(candidates.router, prefix="/api/candidates", tags=["Candidates"])
@@ -127,6 +146,12 @@ app.include_router(timer_cards.router, prefix="/api/timer-cards", tags=["Timer C
 app.include_router(salary.router, prefix="/api/salary", tags=["Salary"])
 app.include_router(requests.router, prefix="/api/requests", tags=["Requests"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
+
+# New routers (v2.0)
+app.include_router(ocr.router, prefix="/api/ocr", tags=["OCR"])
+app.include_router(import_export.router, prefix="/api/import", tags=["Import/Export"])
+app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
 
 
 if __name__ == "__main__":

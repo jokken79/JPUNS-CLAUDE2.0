@@ -2,6 +2,7 @@
 Candidates API Endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+import asyncio
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import os
@@ -19,7 +20,11 @@ from app.schemas.base import PaginatedResponse
 from app.services.auth_service import auth_service
 from app.services.ocr_service import ocr_service
 
+import logging
+
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 
 def generate_rirekisho_id(db: Session) -> str:
@@ -324,31 +329,56 @@ async def process_ocr_document(
     Process document with OCR without creating candidate
     Returns extracted data including face photo for zairyu card
     """
+    logger.info("Starting OCR process")
     import tempfile
     import json
 
     # Validate file type
+    logger.info(f"Validating file type for {file.filename}")
     file_ext = os.path.splitext(file.filename)[1].lower()
     if file_ext not in ['.jpg', '.jpeg', '.png', '.pdf']:
+        logger.error(f"Invalid file type: {file_ext}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File type not allowed. Allowed types: jpg, jpeg, png, pdf"
         )
 
     # Save to temporary file
-    with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
-        shutil.copyfileobj(file.file, tmp_file)
-        tmp_path = tmp_file.name
+    try:
+        logger.info("Creating temporary file")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
+            logger.info(f"Temporary file created at {tmp_file.name}")
+            shutil.copyfileobj(file.file, tmp_file)
+            tmp_path = tmp_file.name
+        logger.info("File saved to temporary location")
+    except Exception as e:
+        logger.error(f"Error saving temporary file: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error saving temporary file: {str(e)}"
+        )
 
     try:
-        # Process with OCR
-        ocr_result = ocr_service.process_document(tmp_path, document_type)
+        logger.info("Processing document with OCR service")
+        # Process with OCR with a timeout
+        ocr_result = await asyncio.wait_for(
+            asyncio.to_thread(ocr_service.process_document, tmp_path, document_type),
+            timeout=60.0
+        )
+        logger.info("OCR processing complete")
 
         return {
             "success": True,
             "data": ocr_result
         }
+    except asyncio.TimeoutError:
+        logger.error("OCR processing timed out")
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="OCR processing timed out after 60 seconds"
+        )
     except Exception as e:
+        logger.error(f"OCR processing error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"OCR processing error: {str(e)}"
@@ -356,4 +386,5 @@ async def process_ocr_document(
     finally:
         # Clean up temporary file
         if os.path.exists(tmp_path):
+            logger.info(f"Cleaning up temporary file {tmp_path}")
             os.remove(tmp_path)
