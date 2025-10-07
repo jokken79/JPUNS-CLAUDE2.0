@@ -308,8 +308,52 @@ async def reject_candidate(
     candidate.status = CandidateStatus.REJECTED
     candidate.approved_by = current_user.id
     candidate.approved_at = func.now()
-    
+
     db.commit()
     db.refresh(candidate)
-    
+
     return candidate
+
+
+@router.post("/ocr/process")
+async def process_ocr_document(
+    file: UploadFile = File(...),
+    document_type: str = Form(...)
+):
+    """
+    Process document with OCR without creating candidate
+    Returns extracted data including face photo for zairyu card
+    """
+    import tempfile
+    import json
+
+    # Validate file type
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in ['.jpg', '.jpeg', '.png', '.pdf']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File type not allowed. Allowed types: jpg, jpeg, png, pdf"
+        )
+
+    # Save to temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
+        shutil.copyfileobj(file.file, tmp_file)
+        tmp_path = tmp_file.name
+
+    try:
+        # Process with OCR
+        ocr_result = ocr_service.process_document(tmp_path, document_type)
+
+        return {
+            "success": True,
+            "data": ocr_result
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"OCR processing error: {str(e)}"
+        )
+    finally:
+        # Clean up temporary file
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)

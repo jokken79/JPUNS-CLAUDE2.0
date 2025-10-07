@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     # OCR Settings
     OCR_ENABLED: bool = True
     TESSERACT_LANG: str = "jpn+eng"
-    GOOGLE_CLOUD_VISION_ENABLED: bool = False
+    GOOGLE_CLOUD_VISION_ENABLED: bool = os.getenv("GOOGLE_CLOUD_VISION_ENABLED", "false").lower() == "true"
+    GOOGLE_CLOUD_VISION_API_KEY: Optional[str] = os.getenv("GOOGLE_CLOUD_VISION_API_KEY")
     GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = None
     
     # Email Settings

@@ -1,14 +1,26 @@
 FROM python:3.11-slim
 
-# Instalar dependencias del sistema para OCR
+# Instalar dependencias del sistema para OCR y procesamiento de imágenes
 RUN apt-get update && apt-get install -y \
+    # Tesseract OCR para extracción de texto
     tesseract-ocr \
     tesseract-ocr-jpn \
     tesseract-ocr-eng \
     libtesseract-dev \
+    # OpenCV y procesamiento de imágenes
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    # PDF processing
     poppler-utils \
+    # PostgreSQL
     libpq-dev \
+    # Compilación
     gcc \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
 # Crear directorio de la aplicación

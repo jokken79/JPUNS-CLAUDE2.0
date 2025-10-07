@@ -92,6 +92,11 @@ async def list_employees(
     """List all employees"""
     query = db.query(Employee)
 
+    # Hide staff (スタッフ) from non-SUPER_ADMIN users
+    from app.models.models import UserRole
+    if current_user.role != UserRole.SUPER_ADMIN:
+        query = query.filter(Employee.contract_type != 'スタッフ')
+
     if factory_id:
         query = query.filter(Employee.factory_id == factory_id)
     if is_active is not None:

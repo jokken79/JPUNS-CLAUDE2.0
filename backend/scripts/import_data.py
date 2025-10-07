@@ -144,7 +144,7 @@ def import_haken_employees(db: Session):
                 # Create employee record
                 employee = Employee(
                     hakenmoto_id=hakenmoto_id,
-                    factory_id=str(row['派遣先ID']) if pd.notna(row['派遣先ID']) else None,
+                    factory_id=None,  # Skip factory_id for now - will be mapped later
                     full_name_kanji=str(row['氏名']) if pd.notna(row['氏名']) else '',
                     full_name_kana=str(row['カナ']) if pd.notna(row['カナ']) else '',
                     date_of_birth=dob,

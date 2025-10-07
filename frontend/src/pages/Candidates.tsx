@@ -13,7 +13,7 @@ const Candidates: React.FC = () => {
       {/* Embed rirekisho.html in iframe */}
       <div className="flex-1 bg-white rounded-lg shadow-sm overflow-hidden">
         <iframe
-          src="/rirekisho.html"
+          src="/templates/rirekisho.html"
           title="履歴書フォーム"
           className="w-full h-full border-0"
           style={{ minHeight: 'calc(100vh - 200px)' }}

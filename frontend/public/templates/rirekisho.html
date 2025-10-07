@@ -212,22 +212,11 @@
                                 <input type="text" id="name_kanji" placeholder="山田 太郎">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium mb-1">ローマ字</label>
-                                <!-- Eliminamos la llamada oninput para prevenir errores de carga -->
-                                <input type="text" id="name_roman" placeholder="YAMADA TARO">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div>
                                 <label class="block text-sm font-medium mb-1">フリガナ</label>
                                 <input type="text" id="name_furigana" placeholder="ヤマダ タロウ">
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">ID</label>
-                                <input type="text" id="applicant_id" readonly class="bg-gray-100">
-                            </div>
                         </div>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                             <div><label>生年月日</label><input type="date" id="birthday"></div>
                             <div><label>年齢</label><input type="number" id="age" min="18" max="80"></div>
                             <div><label>性別</label>
@@ -258,11 +247,21 @@
                     <div><label>郵便番号</label><input type="text" id="postal_code" placeholder="000-0000"></div>
                     <div class="md:col-span-3"><label>住所</label><input type="text" id="address"></div>
                 </div>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div><label>携帯電話</label><input type="tel" id="mobile"></div>
                     <div><label>電話番号</label><input type="tel" id="phone"></div>
                 </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">履歴書ID</label>
+                        <input type="text" id="applicant_id" readonly class="bg-gray-100" placeholder="自動生成">
+                    </div>
+                </div>
+
+                <!-- Campo oculto para compatibilidad con código existente -->
+                <input type="hidden" id="name_roman" value="">
                 
                 <h3 class="font-semibold mt-6 mb-3">緊急連絡先</h3>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -565,6 +564,24 @@
             });
         }
 
+        // Auto-convert 氏名 (Kanji) to フリガナ (Katakana) when name is entered
+        const nameKanjiInput = document.getElementById('name_kanji');
+        if (nameKanjiInput) {
+            nameKanjiInput.addEventListener('input', (event) => {
+                const kanjiName = event.target.value;
+
+                // Check if input contains Japanese characters
+                const hasJapanese = /[一-龯ぁ-んァ-ヶー]/.test(kanjiName);
+
+                if (hasJapanese && typeof wanakana !== 'undefined') {
+                    // Convert to Katakana using WanaKana
+                    const katakanaName = wanakana.toKatakana(kanjiName);
+                    document.getElementById('name_furigana').value = katakanaName;
+                    console.log(`Auto-converted ${kanjiName} to ${katakanaName}`);
+                }
+            });
+        }
+
 
         // Photo upload
         document.getElementById('photo_input').addEventListener('change', (e) => {
@@ -626,8 +643,11 @@
 
             try {
                 const file = event.target.files[0];
-                const base64Image = await checkFileAndProcess(file);
-                
+
+                if (!file) {
+                    throw new Error('ファイルが選択されていません。');
+                }
+
                 // Mostrar preview
                 preview.src = URL.createObjectURL(file);
                 preview.classList.remove('hidden');
@@ -638,34 +658,112 @@
                 status.className = 'ocr-status processing';
                 status.classList.remove('hidden');
 
-                // Procesar imagen con la función mejorada
-                const textData = await extractTextFromImage(base64Image, file.type);
+                // Procesar imagen con el backend
+                const documentType = type === 'zairyu' ? 'zairyu_card' : 'license';
+                const textData = await extractTextFromImage(file, documentType);
                 console.log('Texto extraído:', textData);
 
-                if (!textData || !textData.name) {
-                    throw new Error('テキストの抽出に失敗しました。(Failed to extract text or name)');
+                if (!textData) {
+                    throw new Error('処理に失敗しました。(Failed to process)');
                 }
 
-                // Rellenar campos del formulario
-                document.getElementById('name_kanji').value = textData.name || '';
-                document.getElementById('birthday').value = textData.birthday || '';
-                document.getElementById('address').value = textData.address || '';
+                // Rellenar campos del formulario (si hay datos disponibles)
+                if (textData.name) {
+                    document.getElementById('name_kanji').value = textData.name;
 
-                // NUEVA LÓGICA: Si es tarjeta de residencia (zairyu), establecer nacionalidad y auto-rellenar furigana
+                    // Auto-convert name to Katakana if it contains Japanese characters
+                    const hasJapanese = /[一-龯ぁ-んァ-ヶー]/.test(textData.name);
+                    if (hasJapanese && typeof wanakana !== 'undefined') {
+                        const katakanaName = wanakana.toKatakana(textData.name);
+                        document.getElementById('name_furigana').value = katakanaName;
+                        console.log(`✓ Auto-converted name to Katakana: ${katakanaName}`);
+                    }
+                }
+
+                // Fecha de nacimiento (YYYY-MM-DD)
+                if (textData.birthday || textData.date_of_birth) {
+                    const dob = textData.birthday || textData.date_of_birth || '';
+                    document.getElementById('birthday').value = dob;
+
+                    // Calcular edad automáticamente
+                    if (dob) {
+                        const birthDate = new Date(dob);
+                        const today = new Date();
+                        let age = today.getFullYear() - birthDate.getFullYear();
+                        const monthDiff = today.getMonth() - birthDate.getMonth();
+                        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                            age--;
+                        }
+                        document.getElementById('age').value = age;
+                        console.log(`✓ Edad calculada: ${age}`);
+                    }
+                }
+
+                // Género
+                if (textData.gender) {
+                    document.getElementById('gender').value = textData.gender;
+                    console.log(`✓ Género: ${textData.gender}`);
+                }
+
+                // Nacionalidad
+                if (textData.nationality) {
+                    document.getElementById('nationality').value = textData.nationality;
+                    console.log(`✓ Nacionalidad: ${textData.nationality}`);
+                }
+
+                // Dirección
+                if (textData.address) {
+                    document.getElementById('address').value = textData.address;
+                }
+
+                // Número de tarjeta de residencia
+                if (textData.card_number) {
+                    document.getElementById('residence_card_no').value = textData.card_number;
+                    console.log(`✓ Número de tarjeta: ${textData.card_number}`);
+                }
+
+                // Tipo de visa (在留資格)
+                if (textData.status) {
+                    document.getElementById('visa_type').value = textData.status;
+                    console.log(`✓ Tipo de visa: ${textData.status}`);
+                }
+
+                // Período de visa
+                if (textData.visa_duration || textData.expire_date) {
+                    document.getElementById('visa_period').value = textData.visa_duration || textData.expire_date;
+                    console.log(`✓ Período de visa: ${textData.visa_duration || textData.expire_date}`);
+                }
+
+                // NUEVA LÓGICA: Si es tarjeta de residencia (zairyu), auto-rellenar furigana
                 if (type === 'zairyu') {
-                    // 1. Establecer Nacionalidad a 'その他'
-                    document.getElementById('nationality').value = 'その他';
-                    
-                    // 2. Copiar el nombre OCR (que es el nombre en el ID, asumimos Romaji o Latín para extranjeros) 
-                    // al campo Romaji
-                    const nameForFurigana = textData.name || '';
-                    document.getElementById('name_roman').value = nameForFurigana;
-                    
-                    // 3. Convertir a Katakana usando la función corregida y asignar a Furigana
-                    const convertedFurigana = convertRomajiToFurigana(nameForFurigana);
-                    document.getElementById('name_furigana').value = convertedFurigana;
+                    // Solo copiar nombre si fue extraído exitosamente y no hay nacionalidad detectada
+                    if (textData.name && textData.name.trim() !== '') {
+                        const nameForFurigana = textData.name;
+                        document.getElementById('name_roman').value = nameForFurigana;
 
-                    console.warn("注意: 在留カードをアップロードしたため、国籍を「その他」に設定し、名前をローマ字フィールドにコピーしてフリガナを自動入力しました。フリガナの正確性を必ずご確認ください。");
+                        // 3. Convertir a Katakana usando la función corregida y asignar a Furigana
+                        const convertedFurigana = convertRomajiToFurigana(nameForFurigana);
+                        document.getElementById('name_furigana').value = convertedFurigana;
+
+                        console.log("✓ Nombre extraído y convertido a furigana");
+                    }
+
+                    // 4. NUEVA FUNCIONALIDAD: Extraer foto del rostro y colocarla en el formulario
+                    if (textData.photo) {
+                        const photoPreview = document.getElementById('photo_preview');
+                        const photoPlaceholder = document.getElementById('photo_placeholder');
+                        photoPreview.src = textData.photo;
+                        photoPreview.classList.remove('hidden');
+                        photoPlaceholder.style.display = 'none';
+                        console.log('✓ Foto del rostro extraída y colocada en el formulario');
+                    }
+
+                    // Mensaje informativo ajustado
+                    if (textData.photo && !textData.name) {
+                        console.warn("注意: 在留カードから写真を抽出しました。テキスト情報は手動で入力してください。");
+                    } else if (textData.photo && textData.name) {
+                        console.warn("注意: 在留カードをアップロードしたため、国籍を「その他」に設定し、名前をローマ字フィールドにコピーしてフリガナを自動入力しました。フリガナの正確性を必ずご確認ください。");
+                    }
                 }
 
 
@@ -709,85 +807,41 @@
             });
         }
 
-        // Función de OCR MEJORADA: Usa el modelo gemini-2.5-flash y Structured Output
-        async function extractTextFromImage(base64Image, mimeType) {
-            // Utilizamos la URL y el modelo de Gemini para OCR
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
-            
-            const schema = {
-                type: "OBJECT",
-                properties: {
-                    "name": { "type": "STRING", "description": "Full name in Japanese (Kanji/Kana) or Latin characters if foreign." },
-                    "birthday": { "type": "STRING", "description": "Date of birth in YYYY-MM-DD format." },
-                    "address": { "type": "STRING", "description": "Residential address in Japanese." }
-                },
-                propertyOrdering: ["name", "birthday", "address"]
-            };
+        // Función de OCR: Usa el backend local con Tesseract
+        async function extractTextFromImage(file, documentType) {
+            const apiUrl = 'http://localhost:8000/api/candidates/ocr/process';
 
-            const payload = {
-                contents: [{
-                    parts: [{
-                        text: "Extract the name (氏名), birthday (生年月日 in YYYY-MM-DD format), and address (住所) from this Japanese ID card image (Residence Card or Driver's License). Return only the JSON object."
-                    }, {
-                        inlineData: {
-                            mimeType: mimeType,
-                            data: base64Image
-                        }
-                    }]
-                }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: schema,
-                    temperature: 0.1
+            console.log('Sending request to backend OCR API...');
+
+            try {
+                // Create FormData
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('document_type', documentType);
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
                 }
-            };
 
-            console.log('Sending request to Gemini API with Structured Output...');
+                const result = await response.json();
 
-            // Implementación de reintento con backoff exponencial (mejor práctica para llamadas a API)
-            const maxRetries = 3;
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (response.status === 429 && i < maxRetries - 1) {
-                        // Lógica de reintento por límite de tasa
-                        const delay = Math.pow(2, i) * 1000;
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        continue;
-                    }
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error('API Error Response:', errorText);
-                        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-                    }
-
-                    const result = await response.json();
-                    
-                    const textContent = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                    if (!textContent) {
-                        throw new Error('API returned empty content.');
-                    }
-                    
-                    // Parseamos el JSON para obtener los datos
-                    const parsedData = JSON.parse(textContent);
-                    return parsedData;
-
-                } catch (error) {
-                    if (i === maxRetries - 1) {
-                        throw error; 
-                    }
+                if (!result.success || !result.data) {
+                    throw new Error('API returned empty content.');
                 }
+
+                return result.data;
+
+            } catch (error) {
+                console.error('OCR Error:', error);
+                throw error;
             }
-            throw new Error('Failed to get response after multiple retries.');
         }
 
         // Add job entry
