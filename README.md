@@ -2,7 +2,7 @@
 
 Sistema Integral de Gestión de Personal Temporal para UNS-Kikaku
 
-> ⚠️ **IMPORTANTE:** Si experimentas problemas de login, consulta [docs/sessions/2025-10-07.md](docs/sessions/2025-10-07.md) para la solución.
+> ✅ **ACTUALIZACIÓN:** El sistema ahora inicializa automáticamente el usuario admin al arrancar. No más problemas de login al reiniciar Docker.
 
 ## 🎯 Características Principales
 
@@ -381,6 +381,28 @@ frontend/public/templates/rirekisho.html
 ## 📄 Licencia
 
 Propiedad de UNS-Kikaku © 2025
+
+---
+
+## 📄 Nueva Implementación de OCR (Octubre 2025)
+
+Se ha reemplazado el sistema de OCR basado en Tesseract por una nueva implementación que utiliza la **API de Gemini Pro** directamente desde el frontend.
+
+### Detalles de la Nueva Implementación
+
+*   **Tecnología:** Google Gemini Pro (`gemini-2.5-flash-preview-05-20`).
+*   **Ubicación del Código:** La lógica principal se encuentra en `frontend/public/templates/rirekisho.html`.
+*   **Arquitectura:** La nueva implementación es **100% frontend**. El navegador del cliente envía la imagen directamente a la API de Google, eliminando la necesidad de un endpoint de OCR en el backend.
+*   **Extracción de Datos:** Se utiliza la funcionalidad de **salida estructurada (JSON)** de Gemini para garantizar una extracción de datos fiable. El esquema de extracción incluye:
+    *   `name` (nombre)
+    *   `birthday` (fecha de nacimiento)
+    *   `address` (dirección)
+    *   `photo` (foto del rostro en base64)
+*   **Clave de API:** La clave de la API de Google está actualmente **hardcodeada** en el archivo `rirekisho.html`.
+
+### TODO
+
+*   **[IMPORTANTE]** Mover la clave de la API de Google desde el código del frontend a una variable de entorno en el backend y crear un nuevo endpoint que actúe como proxy. Esto es crucial para la seguridad y para evitar el abuso de la clave de API.
 
 ---
 
