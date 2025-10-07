@@ -7,7 +7,7 @@ from sqlalchemy import func
 from datetime import date
 
 from app.core.database import get_db
-from app.models.models import Request, Employee, User, RequestType, RequestStatus
+from app.models.models import Request, Employee, User, RequestType, RequestStatus, UserRole
 from app.schemas.request import RequestCreate, RequestUpdate, RequestResponse, RequestReview
 from app.services.auth_service import auth_service
 
@@ -27,10 +27,43 @@ async def create_request(
         raise HTTPException(status_code=404, detail="Employee not found")
     
     # Check if employee can make request (only their own unless admin)
-    if current_user.role.value == "employee":
-        # Employee can only request for themselves
-        # You'd need to link user to employee here
-        pass
+    raw_role = current_user.role
+    if isinstance(raw_role, UserRole):
+        current_role = raw_role
+    else:
+        role_str = str(raw_role)
+        if role_str.startswith("UserRole."):
+            role_str = role_str.split(".", 1)[1]
+        try:
+            current_role = UserRole(role_str.upper())
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Invalid role for current user")
+
+    if current_role == UserRole.EMPLOYEE:
+        user_email = (current_user.email or "").strip().lower()
+        if not user_email:
+            raise HTTPException(
+                status_code=403,
+                detail="User account is missing an email address",
+            )
+
+        linked_employee = (
+            db.query(Employee)
+            .filter(func.lower(Employee.email) == user_email)
+            .first()
+        )
+
+        if not linked_employee:
+            raise HTTPException(
+                status_code=403,
+                detail="Employee profile not linked to your account",
+            )
+
+        if linked_employee.id != employee.id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only create requests for your own profile",
+            )
     
     # Calculate total days
     if not request_data.total_days:
