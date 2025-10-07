@@ -636,7 +636,7 @@
                 status.classList.remove('hidden');
 
                 // Procesar imagen con la función mejorada
-                const textData = await extractTextFromImage(base64Image, file.type);
+                const textData = await extractTextFromImage(base64Image, file.type, type);
                 console.log('Texto extraído:', textData);
 
                 if (!textData || !textData.name) {
@@ -712,17 +712,18 @@
             });
         }
 
-        // Función de OCR MEJORADA: Llama al proxy seguro del backend
-        async function extractTextFromImage(base64Image, mimeType) {
-            // La URL ahora apunta a nuestro endpoint de proxy en el backend
-            const apiUrl = '/api/ocr/gemini-proxy';
+        // Función de OCR MEJORADA: Llama al servicio híbrido del backend
+        async function extractTextFromImage(base64Image, mimeType, documentType) {
+            // La URL ahora apunta al endpoint del servicio híbrido
+            const apiUrl = '/api/ocr/process-from-base64';
 
             const payload = {
                 image_base64: base64Image,
-                mime_type: mimeType
+                mime_type: mimeType,
+                document_type: documentType === 'zairyu' ? 'zairyu_card' : 'license'
             };
 
-            console.log('Sending request to secure backend proxy...');
+            console.log('Sending request to hybrid OCR service...');
 
             try {
                 const response = await fetch(apiUrl, {
@@ -735,24 +736,21 @@
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    console.error('Backend proxy error:', errorData.detail);
+                    console.error('Backend OCR service error:', errorData.detail);
                     throw new Error(errorData.detail || `Request failed: ${response.status}`);
                 }
 
                 const result = await response.json();
 
-                const textContent = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                if (!textContent) {
-                    throw new Error('API returned empty or invalid content.');
+                if (!result.success || !result.data) {
+                    throw new Error(result.message || 'El backend ha devuelto un error.');
                 }
 
-                // Parseamos el JSON para obtener los datos
-                const parsedData = JSON.parse(textContent);
-                return parsedData;
+                // El backend ya devuelve los datos parseados
+                return result.data;
 
             } catch (error) {
-                console.error('Error calling backend proxy:', error);
+                console.error('Error calling hybrid OCR service:', error);
                 // Re-throw the error para que sea capturado por processOCR
                 throw error;
             }
