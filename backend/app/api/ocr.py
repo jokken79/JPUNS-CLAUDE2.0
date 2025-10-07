@@ -8,6 +8,9 @@ import logging
 import os
 from pathlib import Path
 import shutil
+from pydantic import BaseModel
+import httpx
+import json
 
 from app.services.ocr_service import ocr_service
 from app.core.config import settings
@@ -17,6 +20,83 @@ logger = logging.getLogger(__name__)
 
 UPLOAD_DIR = Path(settings.UPLOAD_DIR) / "ocr_temp"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# Pydantic model for the proxy request
+class GeminiProxyRequest(BaseModel):
+    image_base64: str
+    mime_type: str
+
+@router.post("/gemini-proxy")
+async def gemini_proxy(request: GeminiProxyRequest):
+    """
+    Acts as a secure proxy to the Google Gemini API.
+    The API key is handled on the backend and not exposed to the client.
+    """
+    if not settings.GEMINI_API_KEY:
+        logger.error("GEMINI_API_KEY is not configured on the server.")
+        raise HTTPException(
+            status_code=500,
+            detail="The OCR service is not configured correctly. Please contact support."
+        )
+
+    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key={settings.GEMINI_API_KEY}"
+
+    # Structured output schema, same as the one previously in the frontend
+    schema = {
+        "type": "OBJECT",
+        "properties": {
+            "name": { "type": "STRING", "description": "Full name in Japanese (Kanji/Kana) or Latin characters if foreign." },
+            "birthday": { "type": "STRING", "description": "Date of birth in YYYY-MM-DD format." },
+            "address": { "type": "STRING", "description": "Residential address in Japanese." },
+            "photo": { "type": "STRING", "description": "The person's face photo as a base64 encoded string." }
+        },
+        "propertyOrdering": ["name", "birthday", "address", "photo"]
+    }
+
+    payload = {
+        "contents": [{
+            "parts": [{
+                "text": "Extract the name (氏名), birthday (生年月日 in YYYY-MM-DD format), address (住所), and the person's face photo from this Japanese ID card image (Residence Card or Driver's License). Return only the JSON object with the photo as a base64 encoded string."
+            }, {
+                "inlineData": {
+                    "mimeType": request.mime_type,
+                    "data": request.image_base64
+                }
+            }]
+        }],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "responseSchema": schema,
+            "temperature": 0.1
+        }
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.post(api_url, json=payload)
+            response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+
+            # Directly return the successful response from Gemini
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Gemini API request failed with status {e.response.status_code}: {e.response.text}")
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail=f"Error from OCR provider: {e.response.text}"
+            )
+        except httpx.RequestError as e:
+            logger.error(f"An error occurred while requesting Gemini API: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to connect to OCR service: {e}"
+            )
+        except Exception as e:
+            logger.error(f"An unexpected error occurred in the Gemini proxy: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="An unexpected error occurred."
+            )
 
 
 @router.post("/process")

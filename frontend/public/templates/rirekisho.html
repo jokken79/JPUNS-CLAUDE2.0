@@ -529,9 +529,6 @@
     <div id="print_container" style="display: none;"></div>
 
     <script>
-        // Clave de API proporcionada en el archivo .env.txt y código original. 
-        const API_KEY = "AIzaSyDL32fmwB7SdbL6yEV3GbSP9dYhHdG1JXw"; 
-
         // Initialize
         document.getElementById('applicant_id').value = `UNS-${Date.now().toString().slice(-6)}`;
         let ocrCompleted = false;
@@ -715,86 +712,50 @@
             });
         }
 
-        // Función de OCR MEJORADA: Usa el modelo gemini-2.5-flash y Structured Output
+        // Función de OCR MEJORADA: Llama al proxy seguro del backend
         async function extractTextFromImage(base64Image, mimeType) {
-            // Utilizamos la URL y el modelo de Gemini para OCR
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
-            
-            const schema = {
-                type: "OBJECT",
-                properties: {
-                    "name": { "type": "STRING", "description": "Full name in Japanese (Kanji/Kana) or Latin characters if foreign." },
-                    "birthday": { "type": "STRING", "description": "Date of birth in YYYY-MM-DD format." },
-                    "address": { "type": "STRING", "description": "Residential address in Japanese." },
-                    "photo": { "type": "STRING", "description": "The person's face photo as a base64 encoded string." }
-                },
-                propertyOrdering: ["name", "birthday", "address", "photo"]
-            };
+            // La URL ahora apunta a nuestro endpoint de proxy en el backend
+            const apiUrl = '/api/ocr/gemini-proxy';
 
             const payload = {
-                contents: [{
-                    parts: [{
-                        text: "Extract the name (氏名), birthday (生年月日 in YYYY-MM-DD format), address (住所), and the person's face photo from this Japanese ID card image (Residence Card or Driver's License). Return only the JSON object with the photo as a base64 encoded string."
-                    }, {
-                        inlineData: {
-                            mimeType: mimeType,
-                            data: base64Image
-                        }
-                    }]
-                }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: schema,
-                    temperature: 0.1
-                }
+                image_base64: base64Image,
+                mime_type: mimeType
             };
 
-            console.log('Sending request to Gemini API with Structured Output...');
+            console.log('Sending request to secure backend proxy...');
 
-            // Implementación de reintento con backoff exponencial (mejor práctica para llamadas a API)
-            const maxRetries = 3;
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(payload)
-                    });
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
 
-                    if (response.status === 429 && i < maxRetries - 1) {
-                        // Lógica de reintento por límite de tasa
-                        const delay = Math.pow(2, i) * 1000;
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        continue;
-                    }
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error('API Error Response:', errorText);
-                        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-                    }
-
-                    const result = await response.json();
-                    
-                    const textContent = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                    if (!textContent) {
-                        throw new Error('API returned empty content.');
-                    }
-                    
-                    // Parseamos el JSON para obtener los datos
-                    const parsedData = JSON.parse(textContent);
-                    return parsedData;
-
-                } catch (error) {
-                    if (i === maxRetries - 1) {
-                        throw error; 
-                    }
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('Backend proxy error:', errorData.detail);
+                    throw new Error(errorData.detail || `Request failed: ${response.status}`);
                 }
+
+                const result = await response.json();
+
+                const textContent = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (!textContent) {
+                    throw new Error('API returned empty or invalid content.');
+                }
+
+                // Parseamos el JSON para obtener los datos
+                const parsedData = JSON.parse(textContent);
+                return parsedData;
+
+            } catch (error) {
+                console.error('Error calling backend proxy:', error);
+                // Re-throw the error para que sea capturado por processOCR
+                throw error;
             }
-            throw new Error('Failed to get response after multiple retries.');
         }
 
         // Add job entry
