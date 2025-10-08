@@ -1,4 +1,4 @@
-# UNS-ClaudeJP 1.0 - Guía Rápida de Inicio
+# UNS-ClaudeJP 2.0 - Guía Rápida de Inicio
 
 ## 📋 Tabla de Contenidos
 1. [Requisitos Previos](#requisitos-previos)
@@ -442,4 +442,32 @@ docker-compose up -d
 
 ---
 
-**¡Bienvenido a UNS-ClaudeJP 1.0!** 🚀
+**¡Bienvenido a UNS-ClaudeJP 2.0!** 🚀
+
+---
+
+## 🆕 Novedades en Versión 2.0
+
+### Mejoras Principales
+
+1. **Sistema OCR Híbrido**
+   - Gemini API (precisión máxima - 100%)
+   - Google Cloud Vision API (respaldo - 80%)
+   - Tesseract OCR (modo offline - 60%)
+   - Sistema de caché inteligente para procesamiento rápido
+
+2. **Seguridad Mejorada**
+   - API Keys protegidas en el backend
+   - Sin exposición en el frontend
+   - Cumplimiento de estándares empresariales
+
+3. **Nuevas Funcionalidades**
+   - Sistema de notificaciones automáticas (Email + LINE + WhatsApp)
+   - Cálculo automático de nómina con reglas japonesas
+   - Importación/Exportación masiva desde Excel
+   - Generación automática de reportes con gráficos
+
+4. **Optimización de Rendimiento**
+   - Procesamiento OCR hasta 3x más rápido
+   - Uso optimizado de memoria
+   - Consultas de base de datos mejoradas

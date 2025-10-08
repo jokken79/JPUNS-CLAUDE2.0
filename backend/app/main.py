@@ -135,7 +135,7 @@ async def internal_error_handler(request: Request, exc):
 # Import and include routers
 from app.api import (
     auth, candidates, employees, factories, timer_cards, salary, requests, dashboard,
-    ocr, import_export, reports, notifications
+    ocr, ocr_optimized, import_export, reports, notifications
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
@@ -149,6 +149,7 @@ app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"]
 
 # New routers (v2.0)
 app.include_router(ocr.router, prefix="/api/ocr", tags=["OCR"])
+app.include_router(ocr_optimized.router, tags=["OCR Optimized"])  # Sistema híbrido optimizado
 app.include_router(import_export.router, prefix="/api/import", tags=["Import/Export"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
