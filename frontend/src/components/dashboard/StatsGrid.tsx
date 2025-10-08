@@ -1,5 +1,10 @@
 import React from 'react';
 import { Stat } from '../../hooks/useDashboardData';
+import {
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
+  MinusSmallIcon,
+} from '@heroicons/react/24/outline';
 
 interface StatsGridProps {
   stats: Stat[];
@@ -7,34 +12,66 @@ interface StatsGridProps {
 
 const StatsGrid: React.FC<StatsGridProps> = ({ stats }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {stats.map((stat) => (
-        <div
-          key={stat.name}
-          className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-600">{stat.name}</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{stat.value}</p>
-              <p
-                className={`mt-2 text-sm font-medium ${
-                  stat.changeType === 'increase'
-                    ? 'text-green-600'
-                    : stat.changeType === 'decrease'
-                    ? 'text-red-600'
-                    : 'text-gray-600'
-                }`}
-              >
-                {stat.change} 先月比
-              </p>
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+      {stats.map((stat) => {
+        const trendStyles =
+          stat.changeType === 'increase'
+            ? {
+                icon: ArrowTrendingUpIcon,
+                badge: 'bg-emerald-500/10 text-emerald-600',
+                label: 'ポジティブな推移',
+              }
+            : stat.changeType === 'decrease'
+            ? {
+                icon: ArrowTrendingDownIcon,
+                badge: 'bg-rose-500/10 text-rose-600',
+                label: '注意が必要',
+              }
+            : {
+                icon: MinusSmallIcon,
+                badge: 'bg-slate-500/10 text-slate-600',
+                label: '安定推移',
+              };
+
+        const TrendIcon = trendStyles.icon;
+
+        return (
+          <article
+            key={stat.name}
+            className="group relative overflow-hidden rounded-3xl border border-white/60 bg-white/80 p-6 shadow-xl shadow-slate-900/5 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
+          >
+            <div
+              className={`pointer-events-none absolute inset-0 opacity-80 transition-opacity duration-500 group-hover:opacity-100 bg-gradient-to-br ${stat.gradient}`}
+            />
+            <div className="relative flex h-full flex-col justify-between gap-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <span className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600 shadow-sm">
+                    {stat.name}
+                  </span>
+                  <p className="mt-4 text-4xl font-semibold leading-tight text-slate-900">
+                    {stat.value}
+                  </p>
+                </div>
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/70 bg-white/80 shadow-inner shadow-white/40">
+                  <stat.icon className="h-7 w-7 text-slate-700" />
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-sm font-semibold text-slate-700">
+                <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${trendStyles.badge}`}>
+                  <TrendIcon className="h-4 w-4" />
+                  <span>{trendStyles.label}</span>
+                </div>
+                <p className="text-base font-semibold text-slate-800">
+                  {stat.change}
+                  <span className="ml-1 text-sm font-medium text-slate-600">先月比</span>
+                </p>
+              </div>
             </div>
-            <div className={`${stat.color} rounded-xl p-3`}>
-              <stat.icon className="h-8 w-8 text-white" />
-            </div>
-          </div>
-        </div>
-      ))}
+            <div className="pointer-events-none absolute -bottom-16 -right-16 h-40 w-40 rounded-full bg-white/60 blur-3xl transition-transform duration-500 group-hover:translate-x-6 group-hover:-translate-y-4" />
+          </article>
+        );
+      })}
     </div>
   );
 };

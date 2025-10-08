@@ -6,9 +6,7 @@ import {
   ClockIcon,
   CurrencyYenIcon,
   DocumentCheckIcon,
-  ExclamationTriangleIcon,
   ArrowTrendingUpIcon,
-  ChartBarIcon
 } from '@heroicons/react/24/outline';
 
 // Interfaces para tipar los datos
@@ -18,7 +16,7 @@ export interface Stat {
   change: string;
   changeType: 'increase' | 'decrease' | 'neutral';
   icon: React.ElementType;
-  color: string;
+  gradient: string;
 }
 
 export interface Alert {
@@ -61,69 +59,69 @@ const useDashboardData = () => {
       // Datos de ejemplo
       setStats([
         {
-            name: '登録従業員数',
-            value: '150',
-            change: '+12',
-            changeType: 'increase',
-            icon: UserGroupIcon,
-            color: 'bg-blue-500'
-          },
-          {
-            name: '承認待ち',
-            value: '12',
-            change: '+3',
-            changeType: 'increase',
-            icon: DocumentCheckIcon,
-            color: 'bg-yellow-500'
-          },
-          {
-            name: '後継技能者数',
-            value: '320',
-            change: '+8',
-            changeType: 'increase',
-            icon: UserGroupIcon,
-            color: 'bg-green-500'
-          },
-          {
-            name: '派遣中後継技能者',
-            value: '305',
-            change: '-2',
-            changeType: 'decrease',
-            icon: UserGroupIcon,
-            color: 'bg-emerald-500'
-          },
-          {
-            name: '企業数',
-            value: '20',
-            change: '0',
-            changeType: 'neutral',
-            icon: BuildingOfficeIcon,
-            color: 'bg-purple-500'
-          },
-          {
-            name: '承認待ち申請',
-            value: '8',
-            change: '+2',
-            changeType: 'increase',
-            icon: ClockIcon,
-            color: 'bg-orange-500'
-          },
-          {
-            name: '今月給与支給額',
-            value: '¥45,000,000',
-            change: '+5.2%',
-            changeType: 'increase',
-            icon: CurrencyYenIcon,
-            color: 'bg-green-600'
-          },
-          {
-            name: '今月利益',
-            value: '¥8,500,000',
-            change: '+3.8%',
-            changeType: 'increase',
-            icon: ArrowTrendingUpIcon,
-            color: 'bg-indigo-500'
-          }
+          name: '登録従業員数',
+          value: '150',
+          change: '+12',
+          changeType: 'increase',
+          icon: UserGroupIcon,
+          gradient: 'from-sky-400/90 via-blue-500/90 to-indigo-500/90'
+        },
+        {
+          name: '承認待ち',
+          value: '12',
+          change: '+3',
+          changeType: 'increase',
+          icon: DocumentCheckIcon,
+          gradient: 'from-amber-400/90 via-orange-400/80 to-yellow-400/90'
+        },
+        {
+          name: '後継技能者数',
+          value: '320',
+          change: '+8',
+          changeType: 'increase',
+          icon: UserGroupIcon,
+          gradient: 'from-emerald-400/90 via-emerald-500/90 to-teal-500/90'
+        },
+        {
+          name: '派遣中後継技能者',
+          value: '305',
+          change: '-2',
+          changeType: 'decrease',
+          icon: UserGroupIcon,
+          gradient: 'from-emerald-500/90 via-green-500/80 to-emerald-600/90'
+        },
+        {
+          name: '企業数',
+          value: '20',
+          change: '0',
+          changeType: 'neutral',
+          icon: BuildingOfficeIcon,
+          gradient: 'from-violet-400/90 via-purple-400/80 to-indigo-500/90'
+        },
+        {
+          name: '承認待ち申請',
+          value: '8',
+          change: '+2',
+          changeType: 'increase',
+          icon: ClockIcon,
+          gradient: 'from-orange-400/90 via-amber-400/80 to-rose-400/90'
+        },
+        {
+          name: '今月給与支給額',
+          value: '¥45,000,000',
+          change: '+5.2%',
+          changeType: 'increase',
+          icon: CurrencyYenIcon,
+          gradient: 'from-emerald-400/90 via-emerald-500/80 to-green-600/90'
+        },
+        {
+          name: '今月利益',
+          value: '¥8,500,000',
+          change: '+3.8%',
+          changeType: 'increase',
+          icon: ArrowTrendingUpIcon,
+          gradient: 'from-indigo-400/90 via-blue-500/80 to-purple-500/90'
+        }
       ]);
       setAlerts([
         {
