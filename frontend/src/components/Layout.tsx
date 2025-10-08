@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import { Switch } from '@headlessui/react';
+import clsx from 'clsx';
 import {
   HomeIcon,
   UserGroupIcon,
@@ -13,22 +15,36 @@ import {
   XMarkIcon,
   ArrowUpTrayIcon
 } from '@heroicons/react/24/outline';
+import { PageKey, usePageVisibility } from '../context/PageVisibilityContext';
+
+type NavigationItem = {
+  key: PageKey;
+  name: string;
+  href: string;
+  icon: typeof HomeIcon;
+};
 
 const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+  const { isPageVisible, togglePage } = usePageVisibility();
 
-  const navigation = [
-    { name: 'ダッシュボード', href: '/dashboard', icon: HomeIcon },
-    { name: '履歴書管理', href: '/candidates', icon: UserPlusIcon },
-    { name: '従業員管理', href: '/employees', icon: UserGroupIcon },
-    { name: '従業員管理（詳細）', href: '/employees-extended', icon: UserGroupIcon },
-    { name: 'データインポート', href: '/import-data', icon: ArrowUpTrayIcon },
-    { name: '企業管理', href: '/factories', icon: BuildingOfficeIcon },
-    { name: 'タイムカード', href: '/timer-cards', icon: ClockIcon },
-    { name: '給与計算', href: '/salary', icon: CurrencyYenIcon },
-    { name: '申請管理', href: '/requests', icon: DocumentTextIcon },
+  const navigation: NavigationItem[] = [
+    { key: 'dashboard', name: 'ダッシュボード', href: '/dashboard', icon: HomeIcon },
+    { key: 'candidates', name: '履歴書管理', href: '/candidates', icon: UserPlusIcon },
+    { key: 'employees', name: '従業員管理', href: '/employees', icon: UserGroupIcon },
+    {
+      key: 'employeesExtended',
+      name: '従業員管理（詳細）',
+      href: '/employees-extended',
+      icon: UserGroupIcon,
+    },
+    { key: 'importData', name: 'データインポート', href: '/import-data', icon: ArrowUpTrayIcon },
+    { key: 'factories', name: '企業管理', href: '/factories', icon: BuildingOfficeIcon },
+    { key: 'timerCards', name: 'タイムカード', href: '/timer-cards', icon: ClockIcon },
+    { key: 'salary', name: '給与計算', href: '/salary', icon: CurrencyYenIcon },
+    { key: 'requests', name: '申請管理', href: '/requests', icon: DocumentTextIcon },
   ];
 
   const handleLogout = () => {
@@ -104,30 +120,75 @@ const Layout: React.FC = () => {
               {navigation.map((item) => {
                 const isActive =
                   location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+                const isVisible = isPageVisible(item.key);
+
                 return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`group relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-300 ${
-                      isActive
-                        ? 'bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-indigo-500/15 text-indigo-600 shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-200/60'
-                        : 'text-slate-600 hover:bg-white/70 hover:text-slate-900 hover:shadow-sm'
-                    }`}
+                  <div
+                    key={item.key}
+                    className={clsx(
+                      'group relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-300',
+                      isVisible
+                        ? isActive
+                          ? 'bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-indigo-500/15 text-indigo-600 shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-200/60'
+                          : 'text-slate-600 hover:bg-white/70 hover:text-slate-900 hover:shadow-sm'
+                        : 'border border-dashed border-amber-200/60 bg-amber-50/70 text-amber-700/80 shadow-none'
+                    )}
                   >
-                    <span
-                      className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
-                        isActive
-                          ? 'border-indigo-300 bg-white text-indigo-500'
-                          : 'border-white/70 bg-white/80 text-slate-500 group-hover:border-indigo-200 group-hover:text-indigo-500'
-                      }`}
+                    <Link
+                      to={item.href}
+                      onClick={(event) => {
+                        if (!isVisible) {
+                          event.preventDefault();
+                        }
+                      }}
+                      aria-disabled={!isVisible}
+                      tabIndex={isVisible ? 0 : -1}
+                      className="flex flex-1 items-center gap-3 focus:outline-none"
                     >
-                      <item.icon className="h-5 w-5" />
-                    </span>
-                    <span className="truncate">{item.name}</span>
-                    {isActive && (
+                      <span
+                        className={clsx(
+                          'flex h-10 w-10 items-center justify-center rounded-xl border transition',
+                          isVisible
+                            ? isActive
+                              ? 'border-indigo-300 bg-white text-indigo-500'
+                              : 'border-white/70 bg-white/80 text-slate-500 group-hover:border-indigo-200 group-hover:text-indigo-500'
+                            : 'border-amber-200 bg-white/90 text-amber-500'
+                        )}
+                      >
+                        <item.icon className="h-5 w-5" />
+                      </span>
+                      <span className="truncate">{item.name}</span>
+                      {!isVisible && (
+                        <span className="ml-2 rounded-full bg-white/80 px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.3em] text-amber-600">
+                          En construcción
+                        </span>
+                      )}
+                    </Link>
+                    <Switch
+                      checked={isVisible}
+                      onChange={() => togglePage(item.key)}
+                      className={clsx(
+                        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border transition focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-1 focus:ring-offset-white',
+                        isVisible
+                          ? 'border-indigo-200 bg-indigo-500/80'
+                          : 'border-amber-200 bg-amber-200/70'
+                      )}
+                    >
+                      <span className="sr-only">Cambiar visibilidad de {item.name}</span>
+                      <span
+                        aria-hidden="true"
+                        className={clsx(
+                          'inline-block h-5 w-5 transform rounded-full bg-white transition',
+                          isVisible
+                            ? 'translate-x-5 shadow shadow-indigo-500/20'
+                            : 'translate-x-1 shadow shadow-amber-500/20'
+                        )}
+                      />
+                    </Switch>
+                    {isActive && isVisible && (
                       <span className="absolute inset-y-1 left-1 w-1 rounded-full bg-indigo-500" aria-hidden="true" />
                     )}
-                  </Link>
+                  </div>
                 );
               })}
             </nav>
