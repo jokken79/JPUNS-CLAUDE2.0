@@ -1,10 +1,28 @@
 @echo off
+setlocal
+
 echo ==========================================
 echo UNS-ClaudeJP 2.0 - Quick Start
 echo ==========================================
 echo.
 
-REM Check if Docker is installed
+echo Detecting Docker Compose...
+set "DOCKER_COMPOSE_CMD="
+docker compose version >nul 2>&1
+if %errorlevel% EQU 0 (
+    set "DOCKER_COMPOSE_CMD=docker compose"
+) else (
+    docker-compose version >nul 2>&1
+    if %errorlevel% EQU 0 (
+        set "DOCKER_COMPOSE_CMD=docker-compose"
+    ) else (
+        echo [ERROR] Docker Compose is not installed!
+        echo Please install Docker Desktop or enable Docker Compose V2.
+        pause
+        exit /b 1
+    )
+)
+
 echo Checking Docker...
 docker --version >nul 2>&1
 if errorlevel 1 (
@@ -16,7 +34,6 @@ if errorlevel 1 (
 echo [OK] Docker is installed
 echo.
 
-REM Check if Docker is running
 echo Checking Docker status...
 docker ps >nul 2>&1
 if errorlevel 1 (
@@ -28,7 +45,7 @@ if errorlevel 1 (
 echo [OK] Docker is running
 echo.
 
-REM Check if .env exists
+echo Checking configuration...
 if not exist ".env" (
     echo [ERROR] .env file not found!
     echo Please run install-windows.bat first.
@@ -38,12 +55,15 @@ if not exist ".env" (
 echo [OK] Configuration found
 echo.
 
-REM Check if containers exist
 echo Checking containers...
-docker ps -a --filter "name=uns-claudejp" --format "{{.Names}}" | findstr "uns-claudejp" >nul
+docker ps -a --filter "name=uns-claudejp" --format "{{.Names}}" | findstr /I "uns-claudejp" >nul
 if errorlevel 1 (
-    echo [INFO] Containers not found. Building first time...
-    docker-compose up -d --build
+    echo [INFO] Containers not found. Building with latest images...
+    call %DOCKER_COMPOSE_CMD% pull
+    if errorlevel 1 (
+        echo [WARNING] Could not pull updated images. Continuing with local cache.
+    )
+    call %DOCKER_COMPOSE_CMD% up -d --build
     if errorlevel 1 (
         echo [ERROR] Build failed
         pause
@@ -51,23 +71,40 @@ if errorlevel 1 (
     )
     echo [OK] Build complete
 ) else (
-    echo Starting services...
-    docker-compose up -d
-    if errorlevel 1 (
-        echo [ERROR] Failed to start services
-        pause
-        exit /b 1
+    set "REBUILD_CHOICE=N"
+    echo Containers detected.
+    echo Do you want to rebuild the containers to apply recent updates? (Y/N)
+    set /p REBUILD_CHOICE=
+    if /I "%REBUILD_CHOICE%"=="Y" (
+        echo [INFO] Updating container images...
+        call %DOCKER_COMPOSE_CMD% pull
+        if errorlevel 1 (
+            echo [WARNING] Could not pull updated images. Continuing with local cache.
+        )
+        call %DOCKER_COMPOSE_CMD% up -d --build
+        if errorlevel 1 (
+            echo [ERROR] Failed to rebuild services
+            pause
+            exit /b 1
+        )
+        echo [OK] Services rebuilt with latest changes
+    ) else (
+        echo Starting services without rebuild...
+        call %DOCKER_COMPOSE_CMD% up -d
+        if errorlevel 1 (
+            echo [ERROR] Failed to start services
+            pause
+            exit /b 1
+        )
+        echo [OK] Services started
     )
-    echo [OK] Services started
 )
 echo.
 
-REM Wait for services to be ready
 echo Waiting for services to be ready...
 timeout /t 15 /nobreak >nul
 echo.
 
-REM Check if services are responding
 echo Checking service health...
 curl -s http://localhost:8000/ >nul 2>&1
 if errorlevel 1 (
@@ -98,4 +135,5 @@ echo.
 
 echo To stop the application later, run: stop-app.bat
 echo.
+endlocal
 pause
