@@ -80,7 +80,14 @@ uploads/*
 # ENV FILES
 # ============================================
 # Descomentar si NO quieres subir .env a GitHub
-# .env
+.env
+backend/.env
+.env.local
+
+# ============================================
+# KILOCODE & SECRETS
+# ============================================
+.kilocode/
 
 # ============================================
 # COMPILED FILES
