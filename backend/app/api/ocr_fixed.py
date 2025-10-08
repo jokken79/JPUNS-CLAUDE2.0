@@ -2,7 +2,7 @@
 OCR API Endpoints for UNS-ClaudeJP 2.0 - FIXED VERSION
 All OCR processing happens in backend with improved error handling and timeouts
 """
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from fastapi.responses import JSONResponse
 import logging
 import os
@@ -155,7 +155,10 @@ async def process_ocr_from_base64(
 
 
 @router.post("/gemini/process", response_model=dict)
-async def process_with_gemini(file: UploadFile = File(...)):
+async def process_with_gemini(
+    file: UploadFile = File(...),
+    document_type: str = Query("zairyu_card")
+):
     """
     Procesa imagen con Gemini API desde el backend - FIXED VERSION
     Esto protege la API key y centraliza el procesamiento OCR
@@ -177,10 +180,11 @@ async def process_with_gemini(file: UploadFile = File(...)):
         base64_image = base64.b64encode(content).decode('utf-8')
         
         # Procesar con Gemini (fixed version)
-        logger.info(f"Processing image with Gemini: {file.filename}")
+        logger.info(f"Processing image with Gemini: {file.filename}, type: {document_type}")
         result = ocr_service_fixed.extract_text_with_gemini_api_from_base64(
             base64_image=base64_image,
-            mime_type=file.content_type or "image/jpeg"
+            mime_type=file.content_type or "image/jpeg",
+            document_type=document_type
         )
         
         if not result:
