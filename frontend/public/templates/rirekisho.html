@@ -319,7 +319,12 @@
                             <option value="特定技能1号・2号">特定技能1号・2号</option>
                         </select>
                     </div>
-                    <div><label>在留期間</label><input type="text" id="visa_period"></div>
+                    <div><label>在留期間</label><input type="text" id="visa_period" placeholder="例: 3年"></div>
+                    <div>
+                        <label>在留期間満了日</label>
+                        <input type="date" id="visa_expiry">
+                        <small class="text-gray-500">形式: 年-月-日</small>
+                    </div>
                     <div><label>在留カード番号</label><input type="text" id="residence_card_no"></div>
                     <div><label>パスポート番号</label><input type="text" id="passport_no"></div>
                     <div>
@@ -616,8 +621,11 @@
     <script>
         // Configuración global - API Key eliminada por seguridad
         const CONFIG = {
-            API_BASE_URL: 'http://localhost:8000',
+            API_BASE_URL: window.location.origin.replace(/:\d+$/, ':8000'),
+            DEBUG_MODE: false,
             OCR_ENDPOINTS: [
+                '/api/ocr-fixed/process',
+                '/api/ocr-fixed/gemini/process',
                 '/api/ocr/gemini/process',
                 '/api/ocr/process'
             ]
@@ -683,7 +691,7 @@
             
             // Manejadores para otros campos de fecha
             const dateFields = [
-                'passport_expiry', 'license_expiry', 'permission_date', 'issue_date'
+                'visa_expiry', 'passport_expiry', 'license_expiry', 'permission_date', 'issue_date'
             ];
             
             dateFields.forEach(fieldId => {
@@ -720,53 +728,81 @@
                     logDebug('WanaKana library not loaded. Autoconversion disabled.');
                     wanakanaErrorLogged = true;
                 }
-                return ''; // Retorna vacío si la librería no está lista
+                return '';
             }
-            
-            // 1. Convierte a mayúsculas para manejar el formato estándar Romaji (ej. YAMADA TARO)
-            const uppercaseInput = romajiText.toUpperCase();
-            
-            // 2. Convierte el Romaji (entrada en mayúsculas) a Katakana
-            let katakana = wanakana.toKatakana(uppercaseInput);
-            
-            // 3. Reemplazar caracteres especiales que no se convierten correctamente
-            katakana = katakana
-                .replace(/TU/g, 'トゥ')  // Para "tu" -> "トゥ"
-                .replace(/DI/g, 'ディ')  // Para "di" -> "ディ"
-                .replace(/DU/g, 'ドゥ')  // Para "du" -> "ドゥ"
-                .replace(/FA/g, 'ファ')  // Para "fa" -> "ファ"
-                .replace(/FI/g, 'フィ')  // Para "fi" -> "フィ"
-                .replace(/FE/g, 'フェ')  // Para "fe" -> "フェ"
-                .replace(/FO/g, 'フォ')  // Para "fo" -> "フォ"
-                .replace(/JE/g, 'ジェ')  // Para "je" -> "ジェ"
-                .replace(/WE/g, 'ウェ')  // Para "we" -> "ウェ"
-                .replace(/WI/g, 'ウィ'); // Para "wi" -> "ウィ"
-                
-            return katakana;
+
+            if (!romajiText || !romajiText.trim()) {
+                return '';
+            }
+
+            const normalizedInput = romajiText
+                .normalize('NFKC')
+                .replace(/[^A-Za-z\s\-']+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            if (!normalizedInput) {
+                return '';
+            }
+
+            const manualWordMap = {
+                'tu': 'トゥ',
+                'di': 'ディ',
+                'du': 'ドゥ',
+                'fa': 'ファ',
+                'fi': 'フィ',
+                'fe': 'フェ',
+                'fo': 'フォ',
+                'je': 'ジェ',
+                'we': 'ウェ',
+                'wi': 'ウィ',
+                'anh': 'アン'
+            };
+
+            const katakanaWords = normalizedInput.split(' ').map((word) => {
+                if (!word) return '';
+
+                const lowerWord = word.toLowerCase();
+                if (manualWordMap[lowerWord]) {
+                    return manualWordMap[lowerWord];
+                }
+
+                const sanitizedWord = lowerWord.replace(/nh$/g, 'n');
+                let katakanaWord = wanakana.toKatakana(sanitizedWord);
+
+                if (word.includes('-')) {
+                    katakanaWord = katakanaWord.replace(/-/g, '・');
+                }
+
+                return katakanaWord;
+            }).filter(Boolean);
+
+            return katakanaWords.join('　');
         }
         
         // FUNCIÓN: Actualizar automáticamente フリガナ desde 氏名
         function autoUpdateFurigana(nameValue) {
+            const value = (nameValue || '').trim();
             let convertMessage = '';
             let furiganaValue = '';
-            
+
             // Si el nombre está en Romaji (solo letras latinas), convertir a Katakana
-            if (/^[A-Za-z\s]+$/.test(nameValue)) {
-                furiganaValue = convertRomajiToFurigana(nameValue);
+            if (value && /^[A-Za-z\s'-]+$/.test(value)) {
+                furiganaValue = convertRomajiToFurigana(value);
                 convertMessage = 'ローマ字からフリガナに変換しました';
-                
+
                 // Ejemplo: MAI TU ANH -> マイ　トゥ　アン
-                console.log(`Conversión: "${nameValue}" -> "${furiganaValue}"`);
+                console.log(`Conversión: "${value}" -> "${furiganaValue}"`);
             }
             // Si el nombre contiene Kana, copiar directamente a フリガナ
-            else if (/[\u3040-\u309F\u30A0-\u30FF]/.test(nameValue)) {
-                furiganaValue = nameValue;
+            else if (/[\u3040-\u309F\u30A0-\u30FF]/.test(value)) {
+                furiganaValue = value;
                 convertMessage = 'カナをフリガナに設定しました';
             }
             // Si el nombre contiene Kanji, intentar leerlo con la librería
-            else if (/[\u4E00-\u9FAF]/.test(nameValue)) {
+            else if (/[\u4E00-\u9FAF]/.test(value)) {
                 // Para Kanji, mostramos un mensaje indicando que debe ser revisado manualmente
-                furiganaValue = nameValue; // Mantener el kanji como referencia
+                furiganaValue = value; // Mantener el kanji como referencia
                 convertMessage = '漢字のフリガナを手動で確認してください';
             }
             else {
@@ -774,11 +810,18 @@
                 furiganaValue = '';
                 convertMessage = '';
             }
-            
+
             // Actualizar el campo フリガNA
-            document.getElementById('name_furigana').value = furiganaValue;
-            document.getElementById('ocr_note').value = convertMessage;
-            
+            const furiganaField = document.getElementById('name_furigana');
+            if (furiganaField) {
+                furiganaField.value = furiganaValue;
+            }
+
+            const noteField = document.getElementById('ocr_note');
+            if (noteField) {
+                noteField.value = convertMessage;
+            }
+
             return { furiganaValue, convertMessage };
         }
 
@@ -788,6 +831,23 @@
             nameKanjiInput.addEventListener('input', (event) => {
                 const nameValue = event.target.value;
                 autoUpdateFurigana(nameValue);
+            });
+        }
+
+        const nameFuriganaInput = document.getElementById('name_furigana');
+        if (nameFuriganaInput) {
+            nameFuriganaInput.addEventListener('blur', (event) => {
+                const manualValue = event.target.value.trim();
+                if (manualValue && /^[A-Za-z\s'-]+$/.test(manualValue)) {
+                    const converted = convertRomajiToFurigana(manualValue);
+                    if (converted) {
+                        event.target.value = converted;
+                        const noteField = document.getElementById('ocr_note');
+                        if (noteField) {
+                            noteField.value = 'フリガナ欄のローマ字を自動変換しました';
+                        }
+                    }
+                }
             });
         }
 
@@ -1039,32 +1099,50 @@
                 
                 // Rellenar fecha de vencimiento de visa si está disponible
                 if (textData.visa_expiry) {
-                    document.getElementById('visa_expiry').value = textData.visa_expiry;
+                    const visaExpiryField = document.getElementById('visa_expiry');
+                    if (visaExpiryField) {
+                        visaExpiryField.value = textData.visa_expiry;
+                    }
                 }
-                
+
                 // Rellenar fecha de emisión si está disponible
                 if (textData.issue_date) {
-                    document.getElementById('issue_date').value = textData.issue_date;
+                    const issueDateField = document.getElementById('issue_date');
+                    if (issueDateField) {
+                        issueDateField.value = textData.issue_date;
+                    }
                 }
-                
+
                 // Rellenar región si está disponible
                 if (textData.region) {
-                    document.getElementById('region').value = textData.region;
+                    const regionField = document.getElementById('region');
+                    if (regionField) {
+                        regionField.value = textData.region;
+                    }
                 }
-                
+
                 // Rellenar fecha de permiso si está disponible
                 if (textData.permission_date) {
-                    document.getElementById('permission_date').value = textData.permission_date;
+                    const permissionDateField = document.getElementById('permission_date');
+                    if (permissionDateField) {
+                        permissionDateField.value = textData.permission_date;
+                    }
                 }
-                
+
                 // Rellenar actividad autorizada si está disponible
                 if (textData.authorized_activity) {
-                    document.getElementById('authorized_activity').value = textData.authorized_activity;
+                    const activityField = document.getElementById('authorized_activity');
+                    if (activityField) {
+                        activityField.value = textData.authorized_activity;
+                    }
                 }
-                
+
                 // Rellenar restricción de empleador si está disponible
                 if (textData.employer_restriction) {
-                    document.getElementById('employer_restriction').value = textData.employer_restriction;
+                    const restrictionField = document.getElementById('employer_restriction');
+                    if (restrictionField) {
+                        restrictionField.value = textData.employer_restriction;
+                    }
                 }
                 
                 // Rellenar número de pasaporte si está disponible
@@ -1302,6 +1380,7 @@
                 emergency_phone: document.getElementById('emergency_phone').value,
                 visa_type: document.getElementById('visa_type').value,
                 visa_period: document.getElementById('visa_period').value,
+                visa_expiry: document.getElementById('visa_expiry').value,
                 residence_card_no: document.getElementById('residence_card_no').value,
                 passport_no: document.getElementById('passport_no').value,
                 passport_expiry: document.getElementById('passport_expiry').value,
