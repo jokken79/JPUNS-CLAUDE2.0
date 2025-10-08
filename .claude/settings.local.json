@@ -13,7 +13,8 @@
       "Bash(docker-compose up:*)",
       "Bash(docker-compose:*)",
       "Bash(tree:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git merge jpmodi1007 -m \"$(cat <<''EOF''\nMerge branch ''jpmodi1007'' into main - UNS-ClaudeJP v2.0\n\nIntegración completa de todas las mejoras de la versión 2.0:\n- Sistema OCR híbrido optimizado (Gemini + Vision + Tesseract)\n- Seguridad mejorada con API Keys en backend\n- Renombrado de archivos de fábricas con nombres descriptivos\n- Documentación actualizada a v2.0\n- Nuevos servicios y endpoints\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []
