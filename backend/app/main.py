@@ -13,6 +13,7 @@ from datetime import datetime
 
 from app.core.config import settings
 from app.core.database import init_db
+from app.core.middleware import LoggingMiddleware, ExceptionHandlerMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -30,6 +31,12 @@ app = FastAPI(
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json"
 )
+
+# Exception Handler Middleware (debe ir primero)
+app.add_middleware(ExceptionHandlerMiddleware)
+
+# Logging Middleware
+app.add_middleware(LoggingMiddleware)
 
 # CORS Middleware
 app.add_middleware(
@@ -71,9 +78,10 @@ async def startup_event():
 
     # Warm-up bcrypt to avoid timeout on first login
     try:
-        from app.services.auth_service import auth_service
-        # Do a dummy hash to initialize bcrypt (prevents 60s delay on first login)
-        _ = auth_service.get_password_hash("warmup")
+        from app.services.auth_service import pwd_context
+        # Do a dummy hash with short password to initialize bcrypt (prevents 60s delay on first login)
+        # Note: Using short password to avoid bcrypt's 72-byte limit
+        _ = pwd_context.hash("warmup")
         logger.info("✅ Bcrypt warmed up successfully")
     except Exception as e:
         logger.error(f"Error warming up bcrypt: {e}")
@@ -138,6 +146,9 @@ from app.api import (
     ocr, ocr_optimized, import_export, reports, notifications
 )
 
+# Import fixed OCR router
+from app.api import ocr_fixed
+
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(candidates.router, prefix="/api/candidates", tags=["Candidates"])
 app.include_router(employees.router, prefix="/api/employees", tags=["Employees"])
@@ -149,7 +160,8 @@ app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"]
 
 # New routers (v2.0)
 app.include_router(ocr.router, prefix="/api/ocr", tags=["OCR"])
-app.include_router(ocr_optimized.router, tags=["OCR Optimized"])  # Sistema híbrido optimizado
+app.include_router(ocr_fixed.router, prefix="/api/ocr-fixed", tags=["OCR Fixed"])  # OCR con timeouts y manejo de errores
+app.include_router(ocr_optimized.router, prefix="/api/ocr-optimized", tags=["OCR Optimized"])  # Sistema híbrido optimizado
 app.include_router(import_export.router, prefix="/api/import", tags=["Import/Export"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])

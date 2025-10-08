@@ -102,6 +102,18 @@
             width: 28px; height: 28px;
             cursor: pointer; font-weight: bold;
         }
+        .debug-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(0,0,0,0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 1000;
+        }
         
         @media print {
             body { margin: 0; padding: 0; }
@@ -156,6 +168,15 @@
                 <h2 class="text-2xl font-bold mb-4 section-title">📷 書類OCR自動入力</h2>
                 <p class="text-sm text-gray-600 mb-4">在留カードまたは運転免許証をアップロードすると、氏名・生年月日・住所・写真が自動入力されます</p>
                 
+                <!-- Debug Info -->
+                <div id="debug_info" class="hidden debug-info"></div>
+                
+                <!-- Server Status -->
+                <div class="mb-4 p-3 bg-gray-100 rounded-lg">
+                    <p class="text-sm">サーバーステータス: <span id="server_status" class="font-semibold">チェック中...</span></p>
+                    <p class="text-sm">OCRエンドポイント: <span id="ocr_status" class="font-semibold">チェック中...</span></p>
+                </div>
+                
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- 在留カード -->
                     <div>
@@ -189,6 +210,13 @@
                         <div id="license_status" class="ocr-status hidden"></div>
                     </div>
                 </div>
+                
+                <!-- Fallback Manual Input -->
+                <div class="mt-6 p-4 bg-yellow-50 rounded-lg">
+                    <p class="text-sm font-semibold text-yellow-800">OCRが機能しない場合:</p>
+                    <button onclick="toggleDebugMode()" class="mt-2 px-3 py-1 bg-yellow-200 text-yellow-800 rounded text-sm">デバッグモードを切り替え</button>
+                    <p class="text-xs text-yellow-700 mt-2">手動で情報を入力してください。デバッグモードでは詳細なエラー情報が表示されます。</p>
+                </div>
             </section>
 
             <!-- 基本情報 -->
@@ -208,28 +236,31 @@
                     <div class="flex-grow w-full">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
-                                <label class="block text-sm font-medium mb-1">氏名 (漢字)</label>
+                                <label class="block text-sm font-medium mb-1">氏名</label>
                                 <input type="text" id="name_kanji" placeholder="山田 太郎">
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">ローマ字</label>
-                                <!-- Eliminamos la llamada oninput para prevenir errores de carga -->
-                                <input type="text" id="name_roman" placeholder="YAMADA TARO">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label class="block text-sm font-medium mb-1">フリガナ</label>
                                 <input type="text" id="name_furigana" placeholder="ヤマダ タロウ">
                             </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label class="block text-sm font-medium mb-1">ID</label>
                                 <input type="text" id="applicant_id" readonly class="bg-gray-100">
                             </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">備考（OCR結果）</label>
+                                <input type="text" id="ocr_note" readonly class="bg-gray-100 text-sm text-gray-600">
+                            </div>
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div><label>生年月日</label><input type="date" id="birthday"></div>
-                            <div><label>年齢</label><input type="number" id="age" min="18" max="80"></div>
+                            <div>
+                                <label>生年月日</label>
+                                <input type="date" id="birthday">
+                                <small class="text-gray-500">形式: 年-月-日</small>
+                            </div>
+                            <div><label>年齢</label><input type="number" id="age" min="18" max="80" readonly class="bg-gray-100"></div>
                             <div><label>性別</label>
                                 <select id="gender">
                                     <option value="">選択</option>
@@ -276,13 +307,41 @@
             <section class="card p-5 sm:p-8 rounded-xl">
                 <h2 class="text-2xl font-bold mb-4 section-title">書類関係</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div><label>ビザ種類</label><input type="text" id="visa_type"></div>
-                    <div><label>ビザ期間</label><input type="text" id="visa_period"></div>
+                    <div><label>在留資格</label>
+                        <select id="visa_type">
+                            <option value="">選択してください</option>
+                            <option value="技術・人文・国際業務">技術・人文・国際業務</option>
+                            <option value="永住者">永住者</option>
+                            <option value="日本人の配偶者">日本人の配偶者</option>
+                            <option value="永住者の配偶者等">永住者の配偶者等</option>
+                            <option value="定住者">定住者</option>
+                            <option value="技能実習1号・2号・3号">技能実習1号・2号・3号</option>
+                            <option value="特定技能1号・2号">特定技能1号・2号</option>
+                        </select>
+                    </div>
+                    <div><label>在留期間</label><input type="text" id="visa_period"></div>
                     <div><label>在留カード番号</label><input type="text" id="residence_card_no"></div>
                     <div><label>パスポート番号</label><input type="text" id="passport_no"></div>
-                    <div><label>パスポート期限</label><input type="date" id="passport_expiry"></div>
+                    <div>
+                        <label>パスポート期限</label>
+                        <input type="date" id="passport_expiry">
+                        <small class="text-gray-500">形式: 年-月-日</small>
+                    </div>
                     <div><label>運転免許番号</label><input type="text" id="license_no"></div>
-                    <div><label>運転免許期限</label><input type="date" id="license_expiry"></div>
+                    <div><label>運転免許種類</label>
+                        <select id="license_type">
+                            <option value="">選択してください</option>
+                            <option value="原付免許">原付免許</option>
+                            <option value="普通免許">普通免許</option>
+                            <option value="中型免許">中型免許</option>
+                            <option value="大型免許">大型免許</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>運転免許期限</label>
+                        <input type="date" id="license_expiry">
+                        <small class="text-gray-500">形式: 年-月-日</small>
+                    </div>
                     <div>
                         <label>自動車所有</label>
                         <div class="flex gap-4 mt-2">
@@ -295,6 +354,32 @@
                         <div class="flex gap-4 mt-2">
                             <label><input type="radio" name="insurance" value="有"> 有</label>
                             <label><input type="radio" name="insurance" value="無"> 無</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Campos adicionales extraídos por OCR -->
+                <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                    <h3 class="font-semibold text-blue-800 mb-3">OCRで抽出された追加情報</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label>地域</label><input type="text" id="region" readonly class="bg-gray-100"></div>
+                        <div>
+                            <label>許可年月日</label>
+                            <input type="date" id="permission_date" readonly class="bg-gray-100">
+                            <small class="text-gray-500">形式: 年-月-日</small>
+                        </div>
+                        <div>
+                            <label>カード発行日</label>
+                            <input type="date" id="issue_date" readonly class="bg-gray-100">
+                            <small class="text-gray-500">形式: 年-月-日</small>
+                        </div>
+                        <div class="md:col-span-3">
+                            <label>就労活動の許可</label>
+                            <textarea id="authorized_activity" rows="2" readonly class="bg-gray-100"></textarea>
+                        </div>
+                        <div class="md:col-span-3">
+                            <label>指定書就職活動の範囲</label>
+                            <textarea id="employer_restriction" rows="2" readonly class="bg-gray-100"></textarea>
                         </div>
                     </div>
                 </div>
@@ -529,17 +614,110 @@
     <div id="print_container" style="display: none;"></div>
 
     <script>
-        // Initialize
-        document.getElementById('applicant_id').value = `UNS-${Date.now().toString().slice(-6)}`;
+        // Configuración global - API Key eliminada por seguridad
+        const CONFIG = {
+            API_BASE_URL: 'http://localhost:8000',
+            OCR_ENDPOINTS: [
+                '/api/ocr/gemini/process',
+                '/api/ocr/process'
+            ]
+        };
+        
+        // Initialize - ID comenzando desde UNS-2000
+        document.getElementById('applicant_id').value = `UNS-2000`;
         let ocrCompleted = false;
         let wanakanaErrorLogged = false; // Flag para no spammear el error de wanakana
+        let currentOCREndpoint = 0; // Índice del endpoint OCR actual
+
+        // Comprobar estado del servidor al cargar la página
+        window.addEventListener('DOMContentLoaded', () => {
+            checkServerStatus();
+            checkOCREndpoint();
+            initializeDateHandlers();
+        });
+
+        // FUNCIÓN: Formatear fecha a formato japonés (año-mes-día)
+        function formatDateJapanese(dateString) {
+            if (!dateString) return '';
+            
+            const date = new Date(dateString);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            
+            return `${year}-${month}-${day}`;
+        }
+
+
+        // FUNCIÓN: Calcular edad automáticamente desde fecha de nacimiento
+        function calculateAge(birthDate) {
+            if (!birthDate) return '';
+            
+            const today = new Date();
+            const birth = new Date(birthDate);
+            
+            let age = today.getFullYear() - birth.getFullYear();
+            const monthDiff = today.getMonth() - birth.getMonth();
+            
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+                age--;
+            }
+            
+            return age;
+        }
+
+        // FUNCIÓN: Inicializar manejadores de fechas
+        function initializeDateHandlers() {
+            // Manejador para el campo de fecha de nacimiento
+            const birthdayInput = document.getElementById('birthday');
+            if (birthdayInput) {
+                birthdayInput.addEventListener('change', (event) => {
+                    const birthDate = event.target.value;
+                    const age = calculateAge(birthDate);
+                    document.getElementById('age').value = age;
+                    
+                    // Mostrar la fecha en formato japonés en la consola para depuración
+                    console.log('Fecha de nacimiento (formato japonés):', formatDateJapanese(birthDate));
+                });
+            }
+            
+            // Manejadores para otros campos de fecha
+            const dateFields = [
+                'passport_expiry', 'license_expiry', 'permission_date', 'issue_date'
+            ];
+            
+            dateFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('change', (event) => {
+                        const dateValue = event.target.value;
+                        if (dateValue) {
+                            console.log(`${fieldId} (formato japonés):`, formatDateJapanese(dateValue));
+                        }
+                    });
+                }
+            });
+            
+            // Manejadores para fechas en tablas dinámicas
+            document.addEventListener('change', (event) => {
+                if (event.target.classList.contains('fam-birthday')) {
+                    const birthDate = event.target.value;
+                    const ageCell = event.target.closest('tr').querySelector('.fam-age');
+                    if (ageCell && birthDate) {
+                        const age = calculateAge(birthDate);
+                        ageCell.value = age;
+                        console.log(`Fecha de nacimiento familiar (formato japonés): ${formatDateJapanese(birthDate)}, Edad: ${age}`);
+                    }
+                }
+            });
+        }
 
         // FUNCIÓN: Conversión de Romaji a Katakana
         // Ahora acepta el texto directamente y devuelve el resultado.
         function convertRomajiToFurigana(romajiText) {
             if (typeof wanakana === 'undefined') {
                 if (!wanakanaErrorLogged) {
-                    console.error('WanaKana library not loaded. Autoconversion disabled.');
+                    logDebug('WanaKana library not loaded. Autoconversion disabled.');
                     wanakanaErrorLogged = true;
                 }
                 return ''; // Retorna vacío si la librería no está lista
@@ -549,19 +727,144 @@
             const uppercaseInput = romajiText.toUpperCase();
             
             // 2. Convierte el Romaji (entrada en mayúsculas) a Katakana
-            return wanakana.toKatakana(uppercaseInput);
+            let katakana = wanakana.toKatakana(uppercaseInput);
+            
+            // 3. Reemplazar caracteres especiales que no se convierten correctamente
+            katakana = katakana
+                .replace(/TU/g, 'トゥ')  // Para "tu" -> "トゥ"
+                .replace(/DI/g, 'ディ')  // Para "di" -> "ディ"
+                .replace(/DU/g, 'ドゥ')  // Para "du" -> "ドゥ"
+                .replace(/FA/g, 'ファ')  // Para "fa" -> "ファ"
+                .replace(/FI/g, 'フィ')  // Para "fi" -> "フィ"
+                .replace(/FE/g, 'フェ')  // Para "fe" -> "フェ"
+                .replace(/FO/g, 'フォ')  // Para "fo" -> "フォ"
+                .replace(/JE/g, 'ジェ')  // Para "je" -> "ジェ"
+                .replace(/WE/g, 'ウェ')  // Para "we" -> "ウェ"
+                .replace(/WI/g, 'ウィ'); // Para "wi" -> "ウィ"
+                
+            return katakana;
         }
         
-        // Asignación de Event Listener al campo de Romaji para evitar el problema de timing (race condition)
-        const nameRomanInput = document.getElementById('name_roman');
-        if (nameRomanInput) {
-            nameRomanInput.addEventListener('input', (event) => {
-                const romajiValue = event.target.value;
-                const furiganaOutput = convertRomajiToFurigana(romajiValue);
-                document.getElementById('name_furigana').value = furiganaOutput;
+        // FUNCIÓN: Actualizar automáticamente フリガナ desde 氏名
+        function autoUpdateFurigana(nameValue) {
+            let convertMessage = '';
+            let furiganaValue = '';
+            
+            // Si el nombre está en Romaji (solo letras latinas), convertir a Katakana
+            if (/^[A-Za-z\s]+$/.test(nameValue)) {
+                furiganaValue = convertRomajiToFurigana(nameValue);
+                convertMessage = 'ローマ字からフリガナに変換しました';
+                
+                // Ejemplo: MAI TU ANH -> マイ　トゥ　アン
+                console.log(`Conversión: "${nameValue}" -> "${furiganaValue}"`);
+            }
+            // Si el nombre contiene Kana, copiar directamente a フリガナ
+            else if (/[\u3040-\u309F\u30A0-\u30FF]/.test(nameValue)) {
+                furiganaValue = nameValue;
+                convertMessage = 'カナをフリガナに設定しました';
+            }
+            // Si el nombre contiene Kanji, intentar leerlo con la librería
+            else if (/[\u4E00-\u9FAF]/.test(nameValue)) {
+                // Para Kanji, mostramos un mensaje indicando que debe ser revisado manualmente
+                furiganaValue = nameValue; // Mantener el kanji como referencia
+                convertMessage = '漢字のフリガナを手動で確認してください';
+            }
+            else {
+                // Limpiar フリガナ si no hay texto válido
+                furiganaValue = '';
+                convertMessage = '';
+            }
+            
+            // Actualizar el campo フリガNA
+            document.getElementById('name_furigana').value = furiganaValue;
+            document.getElementById('ocr_note').value = convertMessage;
+            
+            return { furiganaValue, convertMessage };
+        }
+
+        // Nuevo Event Listener para el campo de nombre (氏名) que actualiza automáticamente フリガナ
+        const nameKanjiInput = document.getElementById('name_kanji');
+        if (nameKanjiInput) {
+            nameKanjiInput.addEventListener('input', (event) => {
+                const nameValue = event.target.value;
+                autoUpdateFurigana(nameValue);
             });
         }
 
+        // Función de depuración
+        function logDebug(message) {
+            if (CONFIG.DEBUG_MODE) {
+                console.log('[DEBUG]', message);
+                const debugInfo = document.getElementById('debug_info');
+                if (debugInfo) {
+                    debugInfo.innerHTML += `<br>${new Date().toLocaleTimeString()}: ${message}`;
+                    debugInfo.scrollTop = debugInfo.scrollHeight;
+                }
+            }
+        }
+
+        // Función para togglear el modo de depuración
+        function toggleDebugMode() {
+            CONFIG.DEBUG_MODE = !CONFIG.DEBUG_MODE;
+            const debugInfo = document.getElementById('debug_info');
+            if (debugInfo) {
+                debugInfo.classList.toggle('hidden');
+                if (CONFIG.DEBUG_MODE) {
+                    debugInfo.innerHTML = 'Modo de depuración activado';
+                    logDebug('Sistema operativo: ' + navigator.platform);
+                    logDebug('Navegador: ' + navigator.userAgent);
+                    logDebug('URL actual: ' + window.location.href);
+                }
+            }
+        }
+
+        // Comprobar estado del servidor
+        async function checkServerStatus() {
+            const serverStatus = document.getElementById('server_status');
+            try {
+                const response = await fetch(`${CONFIG.API_BASE_URL}/`);
+                if (response.ok) {
+                    const data = await response.json();
+                    serverStatus.textContent = `✅ En línea (${data.version})`;
+                    serverStatus.className = 'font-semibold text-green-600';
+                    logDebug('Servidor backend en línea');
+                } else {
+                    throw new Error(`Status: ${response.status}`);
+                }
+            } catch (error) {
+                serverStatus.textContent = `❌ Error de conexión`;
+                serverStatus.className = 'font-semibold text-red-600';
+                logDebug(`Error al conectar con el servidor: ${error.message}`);
+            }
+        }
+
+        // Comprobar endpoint de OCR
+        async function checkOCREndpoint() {
+            const ocrStatus = document.getElementById('ocr_status');
+            
+            for (let i = 0; i < CONFIG.OCR_ENDPOINTS.length; i++) {
+                try {
+                    // Intentar una petición OPTIONS para verificar si el endpoint existe
+                    const response = await fetch(`${CONFIG.API_BASE_URL}${CONFIG.OCR_ENDPOINTS[i]}`, {
+                        method: 'OPTIONS'
+                    });
+                    
+                    if (response.ok || response.status === 405) { // 405 Method Not Allowed es OK, significa que el endpoint existe
+                        ocrStatus.textContent = `✅ Disponible (${CONFIG.OCR_ENDPOINTS[i]})`;
+                        ocrStatus.className = 'font-semibold text-green-600';
+                        currentOCREndpoint = i;
+                        logDebug(`Endpoint OCR encontrado: ${CONFIG.OCR_ENDPOINTS[i]}`);
+                        return;
+                    }
+                } catch (error) {
+                    logDebug(`Error al verificar endpoint ${CONFIG.OCR_ENDPOINTS[i]}: ${error.message}`);
+                }
+            }
+            
+            ocrStatus.textContent = `❌ No disponible`;
+            ocrStatus.className = 'font-semibold text-red-600';
+            logDebug('No se encontraron endpoints de OCR disponibles');
+        }
 
         // Photo upload
         document.getElementById('photo_input').addEventListener('change', (e) => {
@@ -604,11 +907,10 @@
             }
         }
 
-        // Función processOCR mejorada
+        // Función processOCR mejorada con múltiples intentos
         async function processOCR(event, type) {
             if (ocrCompleted) {
-                // En lugar de alert, usamos un mensaje en consola
-                console.warn('OCR processing already completed.');
+                logDebug('OCR processing already completed.');
                 event.target.value = '';
                 return;
             }
@@ -634,19 +936,146 @@
                 status.textContent = '処理中... お待ちください';
                 status.className = 'ocr-status processing';
                 status.classList.remove('hidden');
+                
+                // Añadir indicador visual de progreso
+                let dots = 0;
+                const processingInterval = setInterval(() => {
+                    dots = (dots + 1) % 4;
+                    status.textContent = '処理中' + '.'.repeat(dots) + ' お待ちください';
+                }, 500);
 
-                // Procesar imagen con la función mejorada
-                const textData = await extractTextFromImage(base64Image, file.type, type);
-                console.log('Texto extraído:', textData);
+                // Intentar procesar con diferentes endpoints
+                let textData = null;
+                let lastError = null;
+                
+                for (let i = 0; i < CONFIG.OCR_ENDPOINTS.length; i++) {
+                    try {
+                        logDebug(`Intentando OCR con endpoint: ${CONFIG.OCR_ENDPOINTS[i]}`);
+                        textData = await extractTextFromImage(base64Image, file.type, type, i);
+                        
+                        if (textData && textData.name) {
+                            logDebug(`OCR exitoso con endpoint: ${CONFIG.OCR_ENDPOINTS[i]}`);
+                            break;
+                        }
+                    } catch (error) {
+                        logDebug(`Error con endpoint ${CONFIG.OCR_ENDPOINTS[i]}: ${error.message}`);
+                        lastError = error;
+                        
+                        // Si es timeout, no intentamos más endpoints
+                        if (error.message.includes('Tiempo de espera agotado')) {
+                            throw error;
+                        }
+                    }
+                }
 
                 if (!textData || !textData.name) {
-                    throw new Error('テキストの抽出に失敗しました。(Failed to extract text or name)');
+                    const errorMsg = lastError ? lastError.message : 'テキストの抽出に失敗しました。(Failed to extract text or name)';
+                    throw new Error(errorMsg);
                 }
 
                 // Rellenar campos del formulario
                 document.getElementById('name_kanji').value = textData.name || '';
                 document.getElementById('birthday').value = textData.birthday || '';
                 document.getElementById('address').value = textData.address || '';
+                
+                // Calcular edad automáticamente desde la fecha de nacimiento
+                if (textData.birthday) {
+                    const calculatedAge = calculateAge(textData.birthday);
+                    document.getElementById('age').value = calculatedAge;
+                    console.log(`Edad calculada: ${calculatedAge} años desde ${formatDateJapanese(textData.birthday)}`);
+                }
+                
+                // Rellenar edad si está disponible en OCR (como respaldo)
+                if (textData.age && !document.getElementById('age').value) {
+                    document.getElementById('age').value = textData.age;
+                }
+                
+                // Rellenar género si está disponible
+                if (textData.gender) {
+                    document.getElementById('gender').value = textData.gender;
+                }
+                
+                // Rellenar nacionalidad si está disponible
+                if (textData.nationality) {
+                    // Intentar encontrar una coincidencia en el select
+                    const nationalitySelect = document.getElementById('nationality');
+                    const options = nationalitySelect.options;
+                    let found = false;
+                    
+                    for (let i = 0; i < options.length; i++) {
+                        if (options[i].text.includes(textData.nationality) ||
+                            options[i].value.includes(textData.nationality)) {
+                            nationalitySelect.value = options[i].value;
+                            found = true;
+                            break;
+                        }
+                    }
+                    
+                    // Si no se encuentra, establecer a 'その他'
+                    if (!found) {
+                        nationalitySelect.value = 'その他';
+                    }
+                }
+                
+                // Rellenar código postal si está disponible
+                if (textData.postal_code) {
+                    document.getElementById('postal_code').value = textData.postal_code;
+                }
+                
+                // Rellenar número de tarjeta de residencia si está disponible
+                if (textData.card_number) {
+                    document.getElementById('residence_card_no').value = textData.card_number;
+                }
+                
+                // Rellenar tipo de visa si está disponible
+                if (textData.visa_type) {
+                    document.getElementById('visa_type').value = textData.visa_type;
+                }
+                
+                // Rellenar período de visa si está disponible
+                if (textData.visa_period) {
+                    document.getElementById('visa_period').value = textData.visa_period;
+                }
+                
+                // Rellenar fecha de vencimiento de visa si está disponible
+                if (textData.visa_expiry) {
+                    document.getElementById('visa_expiry').value = textData.visa_expiry;
+                }
+                
+                // Rellenar fecha de emisión si está disponible
+                if (textData.issue_date) {
+                    document.getElementById('issue_date').value = textData.issue_date;
+                }
+                
+                // Rellenar región si está disponible
+                if (textData.region) {
+                    document.getElementById('region').value = textData.region;
+                }
+                
+                // Rellenar fecha de permiso si está disponible
+                if (textData.permission_date) {
+                    document.getElementById('permission_date').value = textData.permission_date;
+                }
+                
+                // Rellenar actividad autorizada si está disponible
+                if (textData.authorized_activity) {
+                    document.getElementById('authorized_activity').value = textData.authorized_activity;
+                }
+                
+                // Rellenar restricción de empleador si está disponible
+                if (textData.employer_restriction) {
+                    document.getElementById('employer_restriction').value = textData.employer_restriction;
+                }
+                
+                // Rellenar número de pasaporte si está disponible
+                if (textData.passport_number) {
+                    document.getElementById('passport_no').value = textData.passport_number;
+                }
+                
+                // Rellenar fecha de vencimiento de pasaporte si está disponible
+                if (textData.passport_expiry) {
+                    document.getElementById('passport_expiry').value = textData.passport_expiry;
+                }
 
                 if (textData.photo) {
                     document.getElementById('photo_preview').src = textData.photo;
@@ -654,24 +1083,23 @@
                     document.getElementById('photo_placeholder').style.display = 'none';
                 }
 
-                // NUEVA LÓGICA: Si es tarjeta de residencia (zairyu), establecer nacionalidad y auto-rellenar furigana
+                // NUEVA LÓGICA: Auto-rellenar フリガナ (Furigana) desde OCR
                 if (type === 'zairyu') {
-                    // 1. Establecer Nacionalidad a 'その他'
-                    document.getElementById('nationality').value = 'その他';
+                    // Usar la función unificada para actualizar フリガナ
+                    autoUpdateFurigana(textData.name || '');
                     
-                    // 2. Copiar el nombre OCR (que es el nombre en el ID, asumimos Romaji o Latín para extranjeros) 
-                    // al campo Romaji
-                    const nameForFurigana = textData.name || '';
-                    document.getElementById('name_roman').value = nameForFurigana;
+                    // Si hay información adicional de kana desde OCR, usarla
+                    if (textData.name_kana) {
+                        document.getElementById('name_furigana').value = textData.name_kana;
+                        document.getElementById('ocr_note').value = 'OCRからカナを取得してフリガナに設定しました';
+                    }
                     
-                    // 3. Convertir a Katakana usando la función corregida y asignar a Furigana
-                    const convertedFurigana = convertRomajiToFurigana(nameForFurigana);
-                    document.getElementById('name_furigana').value = convertedFurigana;
-
-                    console.warn("注意: 在留カードをアップロードしたため、国籍を「その他」に設定し、名前をローマ字フィールドにコピーしてフリガナを自動入力しました。フリガナの正確性を必ずご確認ください。");
+                    logDebug("注意: 在留カードからフリガナを自動入力しました。フリガナの正確性を必ずご確認ください。");
                 }
 
-
+                // Limpiar intervalo de procesamiento
+                clearInterval(processingInterval);
+                
                 ocrCompleted = true;
                 status.textContent = '✓ 処理完了！';
                 status.className = 'ocr-status success';
@@ -682,11 +1110,36 @@
                 document.getElementById(`${otherType}_card`).closest('.ocr-upload-area').style.opacity = '0.5';
 
             } catch (error) {
+                // Limpiar intervalo de procesamiento si existe
+                if (typeof processingInterval !== 'undefined') {
+                    clearInterval(processingInterval);
+                }
+                
                 console.error('OCR Error:', error);
-                // Usamos un modal o un mensaje en consola en lugar de alert
-                status.textContent = `✗ エラー: ${error.message}`;
+                logDebug(`Error en OCR: ${error.message}`);
+                
+                // Mejorar el manejo de errores para mostrar el mensaje específico
+                let errorMessage = 'エラーが発生しました。';
+                
+                if (error.message) {
+                    errorMessage = error.message;
+                } else if (typeof error === 'object') {
+                    // Si el error es un objeto, intentar extraer información útil
+                    try {
+                        errorMessage = JSON.stringify(error);
+                    } catch (e) {
+                        errorMessage = '詳細不明のエラー';
+                    }
+                }
+                
+                status.textContent = `✗ ${errorMessage}`;
                 status.className = 'ocr-status error';
                 event.target.value = '';
+                
+                // Sugerir solución alternativa
+                setTimeout(() => {
+                    status.innerHTML = `✗ ${errorMessage}<br><small>手動で情報を入力してください</small>`;
+                }, 3000);
             }
         }
 
@@ -712,46 +1165,58 @@
             });
         }
 
-        // Función de OCR MEJORADA: Llama al servicio híbrido del backend
-        async function extractTextFromImage(base64Image, mimeType, documentType) {
-            // La URL ahora apunta al endpoint del servicio híbrido
-            const apiUrl = '/api/ocr/process-from-base64';
-
-            const payload = {
-                image_base64: base64Image,
-                mime_type: mimeType,
-                document_type: documentType === 'zairyu' ? 'zairyu_card' : 'license'
-            };
-
-            console.log('Sending request to hybrid OCR service...');
-
+        // NUEVA FUNCIÓN - Llama al backend en lugar de Gemini directamente
+        async function extractTextFromImage(base64Image, mimeType, type, endpointIndex = 0) {
             try {
-                const response = await fetch(apiUrl, {
+                // Convertir base64 a Blob
+                const response = await fetch(`data:${mimeType};base64,${base64Image}`);
+                const blob = await response.blob();
+                
+                // Crear FormData
+                const formData = new FormData();
+                formData.append('file', blob, 'document.jpg');
+                
+                // Usar el endpoint específico según el índice
+                const endpoint = CONFIG.OCR_ENDPOINTS[endpointIndex];
+                logDebug(`Enviando imagen al backend: ${endpoint}`);
+                
+                // Añadir timeout para evitar que se quede colgado
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos timeout
+                
+                const apiResponse = await fetch(`${CONFIG.API_BASE_URL}${endpoint}`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
+                    body: formData,
+                    signal: controller.signal
                 });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error('Backend OCR service error:', errorData.detail);
-                    throw new Error(errorData.detail || `Request failed: ${response.status}`);
+                
+                clearTimeout(timeoutId);
+                
+                if (!apiResponse.ok) {
+                    const errorData = await apiResponse.json().catch(() => ({}));
+                    const errorMessage = errorData.detail || `Error ${apiResponse.status}`;
+                    logDebug(`Error con ${endpoint}: ${errorMessage}`);
+                    throw new Error(errorMessage);
                 }
-
-                const result = await response.json();
-
-                if (!result.success || !result.data) {
-                    throw new Error(result.message || 'El backend ha devuelto un error.');
+                
+                const result = await apiResponse.json();
+                
+                if (!result.success) {
+                    logDebug(`OCR falló con ${endpoint}: ${result.message || 'Error desconocido'}`);
+                    throw new Error(result.message || 'Error desconocido');
                 }
-
-                // El backend ya devuelve los datos parseados
+                
+                logDebug(`✓ OCR exitoso desde backend usando: ${endpoint}`);
                 return result.data;
-
+                
             } catch (error) {
-                console.error('Error calling hybrid OCR service:', error);
-                // Re-throw the error para que sea capturado por processOCR
+                logDebug(`Error en extractTextFromImage: ${error.message}`);
+                
+                // Si es un error de timeout, indicarlo específicamente
+                if (error.name === 'AbortError') {
+                    throw new Error('Tiempo de espera agotado. Inténtelo de nuevo.');
+                }
+                
                 throw error;
             }
         }
@@ -760,15 +1225,15 @@
         function addJobEntry() {
             const tbody = document.getElementById('job_history');
             const tr = document.createElement('tr');
-            tr.innerHTML = '
+            tr.innerHTML = `
                 <td><input type="month" class="job-start"></td>
                 <td><input type="month" class="job-end"></td>
                 <td><input type="text" class="job-hakenmoto"></td>
                 <td><input type="text" class="job-hakensaki"></td>
                 <td><input type="text" class="job-content"></td>
                 <td><input type="text" class="job-reason"></td>
-                <td><button type="button" class="delete-btn" onclick="this.closest(\'tr\').remove()">×</button></td>
-            ';
+                <td><button type="button" class="delete-btn" onclick="this.closest('tr').remove()">×</button></td>
+            `;
             tbody.appendChild(tr);
         }
 
@@ -776,15 +1241,15 @@
         function addFamilyEntry() {
             const tbody = document.getElementById('family_members');
             const tr = document.createElement('tr');
-            tr.innerHTML = '
+            tr.innerHTML = `
                 <td><input type="text" class="fam-name"></td>
                 <td><input type="text" class="fam-relation"></td>
                 <td><input type="date" class="fam-birthday"></td>
                 <td><input type="number" class="fam-age"></td>
                 <td><input type="text" class="fam-residence"></td>
                 <td><select class="fam-dependent"><option value="有">有</option><option value="無">無</option></select></td>
-                <td><button type="button" class="delete-btn" onclick="this.closest(\'tr\').remove()">×</button></td>
-            ';
+                <td><button type="button" class="delete-btn" onclick="this.closest('tr').remove()">×</button></td>
+            `;
             tbody.appendChild(tr);
         }
 
@@ -822,7 +1287,6 @@
             return {
                 photo: document.getElementById('photo_preview').src,
                 name_kanji: document.getElementById('name_kanji').value,
-                name_roman: document.getElementById('name_roman').value,
                 name_furigana: document.getElementById('name_furigana').value,
                 applicant_id: document.getElementById('applicant_id').value,
                 birthday: document.getElementById('birthday').value,
@@ -842,6 +1306,7 @@
                 passport_no: document.getElementById('passport_no').value,
                 passport_expiry: document.getElementById('passport_expiry').value,
                 license_no: document.getElementById('license_no').value,
+                license_type: document.getElementById('license_type').value,
                 license_expiry: document.getElementById('license_expiry').value,
                 car_owner: document.querySelector('input[name="car_owner"]:checked')?.value || '',
                 insurance: document.querySelector('input[name="insurance"]:checked')?.value || '',
@@ -870,7 +1335,13 @@
                 jobHistory: jobHistory,
                 familyMembers: familyMembers,
                 commute_time: document.getElementById('commute_time').value,
-                lunch_pref: document.getElementById('lunch_pref').value
+                lunch_pref: document.getElementById('lunch_pref').value,
+                // Nuevos campos extraídos por OCR
+                region: document.getElementById('region').value,
+                permission_date: document.getElementById('permission_date').value,
+                issue_date: document.getElementById('issue_date').value,
+                authorized_activity: document.getElementById('authorized_activity').value,
+                employer_restriction: document.getElementById('employer_restriction').value
             };
         }
 
@@ -930,10 +1401,6 @@
                     <td style="border: 1px solid #000; padding: 5px;" colspan="3">${data.name_furigana}</td>
                 </tr>
                 <tr>
-                    <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0;">ローマ字</td>
-                    <td style="border: 1px solid #000; padding: 5px;" colspan="3">${data.name_roman}</td>
-                </tr>
-                <tr>
                     <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0;">生年月日</td>
                     <td style="border: 1px solid #000; padding: 5px;">${data.birthday}</td>
                     <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0;">年齢</td>
@@ -991,7 +1458,7 @@
             const data = collectFormData();
 
             try {
-                const response = await fetch('/submit', {
+                const response = await fetch(`${CONFIG.API_BASE_URL}/submit`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

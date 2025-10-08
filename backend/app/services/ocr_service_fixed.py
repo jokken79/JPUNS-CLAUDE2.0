@@ -1,6 +1,6 @@
 """
-OCR Service for UNS-ClaudeJP 2.0
-Sistema híbrido: Gemini + Vision API + Tesseract con cache
+OCR Service for UNS-ClaudeJP 2.0 - FIXED VERSION
+Sistema híbrido: Gemini + Vision API + Tesseract con cache y manejo de errores mejorado
 """
 import pytesseract
 from PIL import Image
@@ -17,6 +17,9 @@ import logging
 import hashlib
 import json
 from pathlib import Path
+import signal
+import sys
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 
 from app.core.config import settings
 
@@ -27,14 +30,25 @@ CACHE_DIR = Path(settings.UPLOAD_DIR) / "ocr_cache"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
+class TimeoutException(Exception):
+    """Excepción personalizada para timeouts"""
+    pass
+
+
+def timeout_handler(signum, frame):
+    """Handler para la señal de timeout"""
+    raise TimeoutException("Operación excedió el tiempo límite")
+
+
 class OCRService:
-    """Service for OCR processing with hybrid approach and caching"""
+    """Service for OCR processing with hybrid approach, caching, and improved error handling"""
     
     def __init__(self):
         self.tesseract_lang = settings.TESSERACT_LANG
         self.vision_api_key = settings.GOOGLE_CLOUD_VISION_API_KEY
         self.gemini_api_key = settings.GEMINI_API_KEY
         self.cache = {}
+        self.request_timeout = 10  # 10 segundos timeout para todas las peticiones
         
     def _get_image_hash(self, image_path: str) -> str:
         """Generate MD5 hash of image for caching"""
@@ -81,6 +95,43 @@ class OCRService:
             logger.error(f"Error formatting date: {e}")
             return date_str
     
+    def _make_request_with_timeout(self, url: str, payload: Dict, timeout: int = None) -> requests.Response:
+        """
+        Realiza una petición HTTP con timeout y manejo de errores mejorado
+        """
+        if timeout is None:
+            timeout = self.request_timeout
+            
+        try:
+            logger.info(f"Realizando petición a {url} con timeout {timeout}s")
+            response = requests.post(
+                url, 
+                json=payload, 
+                timeout=timeout,
+                headers={'Content-Type': 'application/json'}
+            )
+            
+            # Log de respuesta para debugging
+            logger.info(f"Respuesta recibida: Status {response.status_code}")
+            
+            # Verificar si la respuesta es exitosa
+            if response.status_code != 200:
+                logger.error(f"Error en API: Status {response.status_code}, Response: {response.text[:200]}")
+                
+            return response
+            
+        except requests.exceptions.Timeout:
+            logger.error(f"Timeout en petición a {url} después de {timeout}s")
+            raise TimeoutException(f"La petición a {url} excedió el tiempo límite de {timeout}s")
+            
+        except requests.exceptions.ConnectionError:
+            logger.error(f"Error de conexión a {url}")
+            raise TimeoutException(f"No se pudo conectar a {url}")
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error en petición a {url}: {str(e)}")
+            raise TimeoutException(f"Error en petición a {url}: {str(e)}")
+    
     def extract_text_with_gemini_api(self, image_path: str) -> Dict:
         """
         Extract structured data from image using Gemini API
@@ -112,26 +163,38 @@ class OCRService:
                     "visa_type": {"type": "STRING", "description": "Visa status (在留資格)"},
                     "visa_period": {"type": "STRING", "description": "Visa period (在留期間)"},
                     "visa_expiry": {"type": "STRING", "description": "Card expiry date in YYYY-MM-DD format"},
-                    "issue_date": {"type": "STRING", "description": "Card issue date in YYYY-MM-DD format"}
+                    "issue_date": {"type": "STRING", "description": "Card issue date in YYYY-MM-DD format"},
+                    "region": {"type": "STRING", "description": "Region/Zone (地域)"},
+                    "permission_date": {"type": "STRING", "description": "Permission date (許可年月日)"},
+                    "authorized_activity": {"type": "STRING", "description": "Authorized activity (就労活動の許可)"},
+                    "employer_restriction": {"type": "STRING", "description": "Employer restriction (指定書就職活動の範囲)"},
+                    "passport_number": {"type": "STRING", "description": "Passport number if visible"},
+                    "passport_expiry": {"type": "STRING", "description": "Passport expiry date if visible"}
                 }
             }
 
             payload = {
                 "contents": [{
                     "parts": [{
-                        "text": """Extract information from this Japanese Residence Card (在留カード):
+                        "text": """Extract all information from this Japanese Residence Card (在留カード):
                         - name (氏名/NAME): Full name
                         - name_kana (氏名カナ): Name in Katakana/Hiragana if available
                         - birthday (生年月日): Date in YYYY-MM-DD format
                         - age: Calculate age from birthday
-                        - address (住所): Full address
+                        - address (住所): Full address including postal code
                         - gender (性別/SEX): 男性 or 女性
                         - nationality (国籍/NATIONALITY): Country in Japanese
                         - card_number (番号/NUMBER): Card number
                         - visa_type (在留資格/STATUS): Residence status
                         - visa_period (在留期間): Visa period
                         - visa_expiry: Expiry date in YYYY-MM-DD format
-                        - issue_date (有効期間開始): Issue date"""
+                        - issue_date (有効期間開始): Issue date
+                        - region (地域): Region/Zone if visible
+                        - permission_date (許可年月日): Permission date if visible
+                        - authorized_activity (就労活動の許可): Work permission details if visible
+                        - employer_restriction (指定書就職活動の範囲): Employer restrictions if visible
+                        - passport_number: Passport number if visible
+                        - passport_expiry: Passport expiry date if visible"""
                     }, {
                         "inlineData": {
                             "mimeType": mime_type,
@@ -146,9 +209,8 @@ class OCRService:
                 }
             }
 
-            logger.info("Calling Gemini API...")
-            response = requests.post(url, json=payload, timeout=10)
-
+            response = self._make_request_with_timeout(url, payload)
+            
             if response.status_code != 200:
                 logger.error(f"Gemini API error: {response.status_code}")
                 return {}
@@ -177,6 +239,9 @@ class OCRService:
             logger.info(f"Gemini API success: {parsed_data}")
             return parsed_data
 
+        except TimeoutException as e:
+            logger.error(f"Gemini API timeout: {e}")
+            return {}
         except Exception as e:
             logger.error(f"Gemini API error: {e}")
             return {}
@@ -246,6 +311,34 @@ class OCRService:
                         "type": "STRING",
                         "description": "Card issue date in YYYY-MM-DD format"
                     },
+                    "region": {
+                        "type": "STRING",
+                        "description": "Region/Zone (地域)"
+                    },
+                    "permission_date": {
+                        "type": "STRING",
+                        "description": "Permission date (許可年月日)"
+                    },
+                    "authorized_activity": {
+                        "type": "STRING",
+                        "description": "Authorized activity (就労活動の許可)"
+                    },
+                    "employer_restriction": {
+                        "type": "STRING",
+                        "description": "Employer restriction (指定書就職活動の範囲)"
+                    },
+                    "passport_number": {
+                        "type": "STRING",
+                        "description": "Passport number if visible"
+                    },
+                    "passport_expiry": {
+                        "type": "STRING",
+                        "description": "Passport expiry date if visible"
+                    },
+                    "postal_code": {
+                        "type": "STRING",
+                        "description": "Postal code from address"
+                    },
                     "photo": {
                         "type": "STRING",
                         "description": "Face photo as base64 string"
@@ -257,7 +350,9 @@ class OCRService:
                 "contents": [{
                     "parts": [{
                         "text": """Extract all information from this Japanese Residence Card (在留カード).
-                        Include: name, name_kana, birthday, age, address, gender, nationality, card number, visa_type, visa_period, visa_expiry, issue_date.
+                        Include: name, name_kana, birthday, age, address (with postal code), gender, nationality,
+                        card number, visa_type, visa_period, visa_expiry, issue_date, region, permission_date,
+                        authorized_activity, employer_restriction, passport_number, passport_expiry.
                         Also extract the person's face photo as a base64 encoded string.
                         Return only the JSON object."""
                     }, {
@@ -274,9 +369,8 @@ class OCRService:
                 }
             }
 
-            logger.info("Calling Gemini API from base64...")
-            response = requests.post(url, json=payload, timeout=10)
-
+            response = self._make_request_with_timeout(url, payload)
+            
             if response.status_code != 200:
                 logger.error(f"Gemini API error: {response.status_code}")
                 return {}
@@ -307,8 +401,11 @@ class OCRService:
             logger.info(f"Gemini API extracted: {list(parsed_data.keys())}")
             return parsed_data
 
+        except TimeoutException as e:
+            logger.error(f"Error con Gemini API (timeout): {e}")
+            return {}
         except Exception as e:
-            logger.error(f"Error with Gemini API: {e}")
+            logger.error(f"Error con Gemini API: {e}")
             return {}
 
     def extract_text_with_vision_api(self, image_path: str) -> str:
@@ -328,8 +425,8 @@ class OCRService:
                 }]
             }
 
-            response = requests.post(url, json=payload, timeout=10)
-
+            response = self._make_request_with_timeout(url, payload)
+            
             if response.status_code != 200:
                 logger.error(f"Vision API error: {response.status_code}")
                 return ""
@@ -344,6 +441,9 @@ class OCRService:
 
             return ""
 
+        except TimeoutException as e:
+            logger.error(f"Vision API timeout: {e}")
+            return ""
         except Exception as e:
             logger.error(f"Vision API error: {e}")
             return ""
@@ -375,12 +475,23 @@ class OCRService:
         data = {
             "card_number": None,
             "name": "",
+            "name_kana": "",
             "nationality": None,
             "birthday": None,
+            "age": None,
             "gender": None,
             "address": None,
+            "postal_code": None,
             "visa_type": None,
-            "visa_expiry": None
+            "visa_period": None,
+            "visa_expiry": None,
+            "issue_date": None,
+            "region": None,
+            "permission_date": None,
+            "authorized_activity": None,
+            "employer_restriction": None,
+            "passport_number": None,
+            "passport_expiry": None
         }
 
         text = text.replace('\n', ' ').replace('　', ' ')
@@ -395,11 +506,20 @@ class OCRService:
         if match:
             data["name"] = match.group(1).strip()
 
+        # Name Kana
+        match = re.search(r'氏\s*名\s*カ\s*ナ\s*([^\s]+(?:\s+[^\s]+)*)', text)
+        if match:
+            data["name_kana"] = match.group(1).strip()
+
         # Birthday
-        match = re.search(r'(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日', text)
+        match = re.search(r'生\s*年\s*月\s*日\s*(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日', text)
+        if not match:
+            match = re.search(r'(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日', text)
         if match:
             year, month, day = match.groups()
             data["birthday"] = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+            # Calculate age
+            data["age"] = self._calculate_age(data["birthday"])
 
         # Gender
         match = re.search(r'性\s*別\s*(男|女)', text)
@@ -411,21 +531,69 @@ class OCRService:
         if match:
             data["nationality"] = match.group(1).strip()
 
+        # Postal Code
+        match = re.search(r'〒(\d{3}-\d{4})', text)
+        if match:
+            data["postal_code"] = match.group(1).strip()
+
         # Address
         match = re.search(r'住\s*所\s*([^\s]+(?:\s+[^\s]+)*?)(?=\s*在留資格)', text)
         if match:
             data["address"] = match.group(1).strip()
 
         # Visa Type
-        match = re.search(r'在留資格\s*([^\s]+)', text)
+        match = re.search(r'在留資格\s*([^\s]+(?:\s+[^\s]+)*)', text)
         if match:
             data["visa_type"] = match.group(1).strip()
+
+        # Visa Period
+        match = re.search(r'在留期間\s*([^\s]+(?:\s+[^\s]+)*)', text)
+        if match:
+            data["visa_period"] = match.group(1).strip()
 
         # Visa Expiry
         match = re.search(r'在留期間.*?(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日', text)
         if match:
             year, month, day = match.groups()
             data["visa_expiry"] = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+
+        # Issue Date
+        match = re.search(r'有効期間開始\s*(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日', text)
+        if match:
+            year, month, day = match.groups()
+            data["issue_date"] = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+
+        # Region
+        match = re.search(r'地域\s*([^\s]+(?:\s+[^\s]+)*)', text)
+        if match:
+            data["region"] = match.group(1).strip()
+
+        # Permission Date
+        match = re.search(r'許可年月日\s*(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日', text)
+        if match:
+            year, month, day = match.groups()
+            data["permission_date"] = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+
+        # Authorized Activity
+        match = re.search(r'就労活動の許可\s*([^\s]+(?:\s+[^\s]+)*)', text)
+        if match:
+            data["authorized_activity"] = match.group(1).strip()
+
+        # Employer Restriction
+        match = re.search(r'指定書就職活動の範囲\s*([^\s]+(?:\s+[^\s]+)*)', text)
+        if match:
+            data["employer_restriction"] = match.group(1).strip()
+
+        # Passport Number (if visible)
+        match = re.search(r'旅\s*行\s*番\s*号\s*([A-Z0-9]+)', text)
+        if match:
+            data["passport_number"] = match.group(1).strip()
+
+        # Passport Expiry (if visible)
+        match = re.search(r'旅\s*行\s*期\s*限\s*(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日', text)
+        if match:
+            year, month, day = match.groups()
+            data["passport_expiry"] = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
 
         return data
     
@@ -437,8 +605,17 @@ class OCRService:
                 return None
 
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+            
+            # Usar la ruta correcta para el clasificador
+            try:
+                face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+                faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+            except AttributeError:
+                # Si cv2.data no está disponible, intentar ruta alternativa
+                import pkg_resources
+                cascade_path = pkg_resources.resource_filename('cv2', 'data/haarcascade_frontalface_default.xml')
+                face_cascade = cv2.CascadeClassifier(cascade_path)
+                faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
             if len(faces) == 0:
                 # Fallback to typical position
@@ -484,38 +661,55 @@ class OCRService:
         # Method 1: Gemini API
         if self.gemini_api_key and self.gemini_api_key != 'YOUR_API_KEY_HERE':
             try:
+                logger.info("Intentando Gemini API...")
                 gemini_result = self.extract_text_with_gemini_api(image_path)
                 if self._validate_result(gemini_result):
                     results.append(('gemini', gemini_result, 100))
                     logger.info("Gemini API succeeded")
+                else:
+                    logger.warning("Gemini API returned invalid result")
+            except TimeoutException:
+                logger.warning("Gemini API timed out")
             except Exception as e:
                 logger.warning(f"Gemini failed: {e}")
 
         # Method 2: Vision API
-        if self.vision_api_key and self.vision_api_key != 'YOUR_API_KEY_HERE':
+        if self.vision_api_key and self.vision_api_key != 'YOUR_API_KEY_HERE' and not results:
             try:
+                logger.info("Intentando Vision API...")
                 vision_text = self.extract_text_with_vision_api(image_path)
                 if vision_text:
                     vision_result = self.parse_zairyu_card(vision_text)
                     if self._validate_result(vision_result):
                         results.append(('vision', vision_result, 80))
                         logger.info("Vision API succeeded")
+            except TimeoutException:
+                logger.warning("Vision API timed out")
             except Exception as e:
                 logger.warning(f"Vision API failed: {e}")
 
         # Method 3: Tesseract (always available, offline)
-        try:
-            tesseract_text = self.extract_text_with_tesseract(image_path)
-            if tesseract_text:
-                tesseract_result = self.parse_zairyu_card(tesseract_text)
-                if self._validate_result(tesseract_result):
-                    results.append(('tesseract', tesseract_result, 60))
-                    logger.info("Tesseract succeeded")
-        except Exception as e:
-            logger.warning(f"Tesseract failed: {e}")
+        if not results:
+            try:
+                logger.info("Intentando Tesseract OCR...")
+                tesseract_text = self.extract_text_with_tesseract(image_path)
+                if tesseract_text:
+                    tesseract_result = self.parse_zairyu_card(tesseract_text)
+                    if self._validate_result(tesseract_result):
+                        results.append(('tesseract', tesseract_result, 60))
+                        logger.info("Tesseract succeeded")
+            except Exception as e:
+                logger.warning(f"Tesseract failed: {e}")
 
         if not results:
-            raise Exception("All OCR methods failed")
+            logger.error("Todos los métodos OCR fallaron")
+            # Devolver resultado vacío en lugar de lanzar excepción
+            return {
+                "error": "Todos los métodos OCR fallaron",
+                "ocr_method": "none",
+                "confidence": 0,
+                "processed_at": datetime.now().isoformat()
+            }
 
         # Select best result
         best_method, best_result, confidence = max(results, key=lambda x: x[2])
@@ -563,4 +757,4 @@ class OCRService:
 
 
 # Global instance
-ocr_service = OCRService()
+ocr_service_fixed = OCRService()

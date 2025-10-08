@@ -80,7 +80,7 @@ class Candidate(Base):
 
     # Primary Key & IDs
     id = Column(Integer, primary_key=True, index=True)
-    rirekisho_id = Column(String(20), unique=True, nullable=False, index=True)  # 履歴書ID (formerly uns_id)
+    rirekisho_id = Column(String(20), unique=True, nullable=False, index=True)  # 履歴書ID
 
     # 受付日・来日 (Reception & Arrival Dates)
     reception_date = Column(Date)  # 受付日
@@ -257,8 +257,7 @@ class Candidate(Base):
 
     # Legacy fields for compatibility
     email = Column(String(100))
-    phone = Column(String(20))
-    address = Column(Text)
+    # phone y address ya están definidos arriba, no duplicar
 
     # Status & Audit Fields
     status = Column(SQLEnum(CandidateStatus, name='candidate_status'), default=CandidateStatus.PENDING)
@@ -375,7 +374,7 @@ class Employee(Base):
     japanese_level = Column(String(50))    # 日本語検定
     career_up_5years = Column(Boolean, default=False)  # キャリアアップ5年目
     entry_request_date = Column(Date)      # 入社依頼日
-    photo_url = Column(String(255))        # 写真URL
+    # photo_url ya está definido arriba, no duplicar
     notes = Column(Text)                   # 備考
     postal_code = Column(String(10))       # 郵便番号
 

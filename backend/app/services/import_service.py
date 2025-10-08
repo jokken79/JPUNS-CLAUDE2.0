@@ -46,14 +46,14 @@ class ImportService:
             logger.info(f"Found {len(df)} rows in Excel")
             
             # Process each row
-            for index, row in df.iterrows():
+            for i, (_, row) in enumerate(df.iterrows()):
                 try:
                     # Validate required fields
                     validation_errors = self._validate_employee_data(row)
                     
                     if validation_errors:
                         results["errors"].append({
-                            "row": index + 2,  # +2 for Excel header
+                            "row": i + 2,  # +2 for Excel header
                             "errors": validation_errors
                         })
                         results["failed"] += 1
@@ -64,19 +64,19 @@ class ImportService:
                     
                     # TODO: Insert into database
                     # For now, just validate and log
-                    logger.info(f"Row {index + 2}: {employee_data.get('full_name_kanji')}")
+                    logger.info(f"Row {i + 2}: {employee_data.get('full_name_kanji')}")
                     
                     results["success"].append({
-                        "row": index + 2,
+                        "row": i + 2,
                         "name": employee_data.get('full_name_kanji'),
                         "id": employee_data.get('hakenmoto_id')
                     })
                     results["imported"] += 1
                     
                 except Exception as e:
-                    logger.error(f"Error processing row {index + 2}: {e}")
+                    logger.error(f"Error processing row {i + 2}: {e}")
                     results["errors"].append({
-                        "row": index + 2,
+                        "row": i + 2,
                         "error": str(e)
                     })
                     results["failed"] += 1
@@ -218,7 +218,7 @@ class ImportService:
             df = pd.read_excel(file_path)
             results["total_rows"] = len(df)
             
-            for index, row in df.iterrows():
+            for i, (_, row) in enumerate(df.iterrows()):
                 try:
                     # Validate required fields
                     required = ['日付', '社員ID', '出勤時刻', '退勤時刻']
@@ -226,7 +226,7 @@ class ImportService:
                     
                     if missing:
                         results["errors"].append({
-                            "row": index + 2,
+                            "row": i + 2,
                             "error": f"Missing fields: {', '.join(missing)}"
                         })
                         results["failed"] += 1
@@ -244,19 +244,19 @@ class ImportService:
                     }
                     
                     # TODO: Insert into database
-                    logger.info(f"Row {index + 2}: Timer card for {timer_data['employee_id']}")
+                    logger.info(f"Row {i + 2}: Timer card for {timer_data['employee_id']}")
                     
                     results["success"].append({
-                        "row": index + 2,
+                        "row": i + 2,
                         "employee_id": timer_data['employee_id'],
                         "date": timer_data['work_date']
                     })
                     results["imported"] += 1
                     
                 except Exception as e:
-                    logger.error(f"Error processing row {index + 2}: {e}")
+                    logger.error(f"Error processing row {i + 2}: {e}")
                     results["errors"].append({
-                        "row": index + 2,
+                        "row": i + 2,
                         "error": str(e)
                     })
                     results["failed"] += 1
@@ -306,7 +306,7 @@ class ImportService:
                         config = json.load(f)
                     
                     # Validate config structure
-                    required = ['factory_id', 'name', 'jikyu_tanka']
+                    required = ['factory_id', 'client_company', 'plant', 'assignment', 'job']
                     missing = [f for f in required if f not in config]
                     
                     if missing:

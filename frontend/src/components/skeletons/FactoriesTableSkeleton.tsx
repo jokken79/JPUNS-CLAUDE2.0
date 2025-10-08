@@ -11,21 +11,21 @@ const FactoriesTableSkeleton: React.FC = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead>
             <tr>
-              <th className="px-6 py-3"><div class="h-4 bg-gray-200 rounded w-full"></div></th>
-              <th className="px-6 py-3"><div class="h-4 bg-gray-200 rounded w-full"></div></th>
-              <th className="px-6 py-3"><div class="h-4 bg-gray-200 rounded w-full"></div></th>
-              <th className="px-6 py-3"><div class="h-4 bg-gray-200 rounded w-full"></div></th>
-              <th className="px-6 py-3"><div class="h-4 bg-gray-200 rounded w-full"></div></th>
+              <th className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-full"></div></th>
+              <th className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-full"></div></th>
+              <th className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-full"></div></th>
+              <th className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-full"></div></th>
+              <th className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-full"></div></th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {[...Array(3)].map((_, i) => (
               <tr key={i}>
-                <td className="px-6 py-4"><div class="h-4 bg-gray-200 rounded w-full"></div></td>
-                <td className="px-6 py-4"><div class="h-4 bg-gray-200 rounded w-full"></div></td>
-                <td className="px-6 py-4"><div class="h-4 bg-gray-200 rounded w-full"></div></td>
-                <td className="px-6 py-4"><div class="h-4 bg-gray-200 rounded w-full"></div></td>
-                <td className="px-6 py-4"><div class="h-4 bg-gray-200 rounded w-full"></div></td>
+                <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-full"></div></td>
+                <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-full"></div></td>
+                <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-full"></div></td>
+                <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-full"></div></td>
+                <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-full"></div></td>
               </tr>
             ))}
           </tbody>

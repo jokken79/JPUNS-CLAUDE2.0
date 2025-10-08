@@ -55,7 +55,7 @@ class AuthService:
         
         if not user:
             return False
-        if not AuthService.verify_password(password, user.password_hash):
+        if not AuthService.verify_password(password, str(user.password_hash)):
             return False
         
         return user
@@ -74,7 +74,7 @@ class AuthService:
         
         try:
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-            username: str = payload.get("sub")
+            username = payload.get("sub")
             if username is None:
                 raise credentials_exception
         except JWTError:
@@ -93,7 +93,7 @@ class AuthService:
     ):
         """Get current active user"""
         current_user = await AuthService.get_current_user(token, db)
-        if not current_user.is_active:
+        if not bool(current_user.is_active):
             raise HTTPException(status_code=400, detail="Inactive user")
         return current_user
     
@@ -102,13 +102,13 @@ class AuthService:
         """Dependency to check user role"""
         async def role_checker(current_user: User = Depends(AuthService.get_current_active_user)):
             allowed_roles = {
-                'super_admin': ['super_admin'],
-                'admin': ['super_admin', 'admin'],
-                'coordinator': ['super_admin', 'admin', 'coordinator'],
-                'employee': ['super_admin', 'admin', 'coordinator', 'employee']
+                'super_admin': ['SUPER_ADMIN'],
+                'admin': ['SUPER_ADMIN', 'ADMIN'],
+                'coordinator': ['SUPER_ADMIN', 'ADMIN', 'COORDINATOR'],
+                'employee': ['SUPER_ADMIN', 'ADMIN', 'COORDINATOR', 'EMPLOYEE']
             }
 
-            if current_user.role.value not in allowed_roles.get(required_role, []):
+            if current_user.role.name not in allowed_roles.get(required_role, []):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Not enough permissions"

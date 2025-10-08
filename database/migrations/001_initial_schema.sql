@@ -39,14 +39,16 @@ CREATE TABLE users (
 -- Candidates Table
 CREATE TABLE candidates (
     id SERIAL PRIMARY KEY,
-    uns_id VARCHAR(20) UNIQUE NOT NULL,
+    rirekisho_id VARCHAR(20) UNIQUE NOT NULL,
     full_name_kanji VARCHAR(100),
     full_name_kana VARCHAR(100),
+    full_name_roman VARCHAR(100),
     date_of_birth DATE,
     gender VARCHAR(10),
     nationality VARCHAR(50),
     address TEXT,
     phone VARCHAR(20),
+    mobile VARCHAR(20),
     email VARCHAR(100),
     photo_url VARCHAR(255),
     status candidate_status DEFAULT 'pending',
@@ -86,7 +88,7 @@ CREATE TABLE apartments (
 CREATE TABLE employees (
     id SERIAL PRIMARY KEY,
     hakenmoto_id INTEGER UNIQUE NOT NULL,
-    uns_id VARCHAR(20) REFERENCES candidates(uns_id),
+    rirekisho_id VARCHAR(20) REFERENCES candidates(rirekisho_id),
     factory_id VARCHAR(20) REFERENCES factories(factory_id),
     hakensaki_shain_id VARCHAR(50),
     full_name_kanji VARCHAR(100) NOT NULL,
@@ -231,7 +233,7 @@ CREATE TABLE audit_log (
 -- INDEXES
 -- ============================================
 
-CREATE INDEX idx_candidates_uns_id ON candidates(uns_id);
+CREATE INDEX idx_candidates_rirekisho_id ON candidates(rirekisho_id);
 CREATE INDEX idx_employees_hakenmoto_id ON employees(hakenmoto_id);
 CREATE INDEX idx_employees_factory_id ON employees(factory_id);
 CREATE INDEX idx_timer_cards_employee_date ON timer_cards(employee_id, work_date);

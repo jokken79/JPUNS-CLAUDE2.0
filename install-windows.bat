@@ -1,6 +1,6 @@
 @echo off
 echo ==========================================
-echo UNS-ClaudeJP 1.0 - Windows Installation
+echo UNS-ClaudeJP 2.0 - Windows Installation
 echo ==========================================
 echo.
 
@@ -57,7 +57,7 @@ echo.
 
 REM Build Docker images
 echo Building Docker images...
-docker-compose build
+docker-compose up -d --build
 if errorlevel 1 (
     echo [ERROR] Build failed
     pause
@@ -66,20 +66,18 @@ if errorlevel 1 (
 echo [OK] Build complete
 echo.
 
-REM Start services
-echo Starting services...
-docker-compose up -d
-if errorlevel 1 (
-    echo [ERROR] Failed to start services
-    pause
-    exit /b 1
-)
-echo [OK] Services started
+REM Wait for services to be ready
+echo Waiting for services to initialize...
+timeout /t 20 /nobreak >nul
 echo.
 
-REM Wait for services to be ready
-echo Waiting for services...
-timeout /t 10 /nobreak >nul
+REM Check if services are responding
+echo Checking service health...
+curl -s http://localhost:8000/ >nul 2>&1
+if errorlevel 1 (
+    echo [WARNING] Backend not responding yet. This is normal on first startup.
+    echo The database might still be initializing. Please wait a few minutes.
+)
 echo.
 
 REM Get local IP
@@ -109,6 +107,8 @@ echo   - Password: admin123
 echo   [IMPORTANT] Change password after first login!
 echo.
 echo Useful commands:
+echo   - Quick start: start-app.bat
+echo   - Quick stop: stop-app.bat
 echo   - View logs: docker-compose logs -f
 echo   - Stop: docker-compose stop
 echo   - Start: docker-compose start

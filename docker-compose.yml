@@ -37,9 +37,9 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
       UPLOAD_DIR: /app/uploads
       OCR_ENABLED: "true"
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-AIzaSyDL32fmwB7SdbL6yEV3GbSP9dYhHdG1JXw}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
       GOOGLE_CLOUD_VISION_ENABLED: "true"
-      GOOGLE_CLOUD_VISION_API_KEY: "AIzaSyDL32fmwB7SdbL6yEV3GbSP9dYhHdG1JXw"
+      GOOGLE_CLOUD_VISION_API_KEY: ${GOOGLE_CLOUD_VISION_API_KEY}
       LINE_NOTIFY_TOKEN: ${LINE_TOKEN:-}
       EMAIL_HOST: ${EMAIL_HOST:-smtp.gmail.com}
       EMAIL_PORT: ${EMAIL_PORT:-587}
@@ -70,6 +70,9 @@ services:
       REACT_APP_NAME: UNS-ClaudeJP 1.0
       REACT_APP_COMPANY: UNS企画
       REACT_APP_LANGUAGE: ja
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     ports:
       - "3000:3000"
     depends_on:
