@@ -114,15 +114,134 @@
             max-width: 300px;
             z-index: 1000;
         }
-        
+
+        #preview_content {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            background: #f1f5f9;
+            overflow: auto;
+        }
+
+        #preview_content .print-page {
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+        }
+
+        .print-page {
+            width: 297mm;
+            min-height: 210mm;
+            background: #ffffff;
+            color: #111827;
+            padding: 14mm 18mm;
+            box-sizing: border-box;
+            font-family: 'MS Gothic', 'Yu Gothic', sans-serif;
+            font-size: 9.5pt;
+            line-height: 1.5;
+        }
+
+        .print-header {
+            display: flex;
+            gap: 12mm;
+            align-items: stretch;
+            margin-bottom: 10mm;
+        }
+
+        .print-photo-frame {
+            width: 40mm;
+            height: 50mm;
+            border: 1px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+            overflow: hidden;
+        }
+
+        .print-photo-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .print-basic-table,
+        .print-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .print-basic-table th,
+        .print-basic-table td,
+        .print-table th,
+        .print-table td {
+            border: 1px solid #000;
+            padding: 3mm;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .print-basic-table th,
+        .print-table th {
+            background: #e5e7eb;
+            font-weight: 600;
+        }
+
+        .print-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8mm;
+            margin-bottom: 10mm;
+        }
+
+        .print-section {
+            border: 1px solid #000;
+            padding: 4mm;
+        }
+
+        .print-section.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .print-section-title {
+            font-weight: 700;
+            font-size: 11pt;
+            margin-bottom: 3mm;
+            background: #e5e7eb;
+            padding: 2mm 3mm;
+            border-left: 3mm solid #1D4ED8;
+        }
+
+        .print-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .print-tag {
+            border: 1px solid #1D4ED8;
+            background: #eef2ff;
+            color: #1D4ED8;
+            border-radius: 9999px;
+            padding: 2px 8px;
+            font-size: 8.5pt;
+        }
+
+        .print-muted {
+            color: #6b7280;
+            font-size: 8.5pt;
+        }
+
+        .print-table td span.block {
+            display: block;
+        }
+
         @media print {
             body { margin: 0; padding: 0; }
             #app { display: none !important; }
-            #print_container { 
+            #print_container {
                 display: block !important;
                 position: relative;
-                width: 210mm;
-                height: 297mm;
+                width: 297mm;
+                min-height: 210mm;
                 margin: 0;
                 padding: 0;
             }
@@ -149,7 +268,15 @@
                 position: absolute;
                 object-fit: cover;
             }
-            @page { size: A4; margin: 0; }
+            @page { size: A4 landscape; margin: 10mm; }
+            .print-page {
+                width: 297mm;
+                min-height: 210mm;
+                padding: 10mm 15mm;
+                box-shadow: none !important;
+            }
+            .print-grid { gap: 6mm; }
+            #preview_modal { display: none !important; }
         }
     </style>
 </head>
@@ -605,10 +732,10 @@
 
     <!-- Preview Modal -->
     <div id="preview_modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; overflow: auto;">
-        <div style="max-width: 900px; margin: 20px auto; background: white; padding: 20px; border-radius: 8px; position: relative;">
+        <div style="max-width: 1300px; margin: 20px auto; background: #ffffff; padding: 24px; border-radius: 12px; position: relative; box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);">
             <button onclick="closePreview()" style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 20px; font-weight: bold;">×</button>
             <h2 style="text-align: center; margin-bottom: 20px; color: #1D4ED8;">印刷プレビュー</h2>
-            <div id="preview_content" style="border: 2px solid #ccc; background: white; min-height: 400px;"></div>
+            <div id="preview_content" style="border: 1px solid #cbd5f5; border-radius: 8px; min-height: 400px;"></div>
             <div style="text-align: center; margin-top: 20px;">
                 <button onclick="printPDF()" class="btn-primary">このまま印刷</button>
             </div>
@@ -1378,6 +1505,7 @@
                 emergency_name: document.getElementById('emergency_name').value,
                 emergency_relation: document.getElementById('emergency_relation').value,
                 emergency_phone: document.getElementById('emergency_phone').value,
+                ocr_note: document.getElementById('ocr_note').value,
                 visa_type: document.getElementById('visa_type').value,
                 visa_period: document.getElementById('visa_period').value,
                 visa_expiry: document.getElementById('visa_expiry').value,
@@ -1424,11 +1552,46 @@
             };
         }
 
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            return value
+                .toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function formatValue(value, fallback = '―') {
+            const normalized = (value ?? '').toString().trim();
+            return normalized ? escapeHtml(normalized) : fallback;
+        }
+
+        function formatValueWithUnit(value, unit, fallback = '―') {
+            const normalized = (value ?? '').toString().trim();
+            return normalized ? `${escapeHtml(normalized)}${unit}` : fallback;
+        }
+
+        function formatMultiline(value, fallback = '―') {
+            const normalized = (value ?? '').toString().trim();
+            return normalized ? escapeHtml(value).replace(/\n/g, '<br>') : fallback;
+        }
+
+        function formatPeriod(start, end) {
+            const s = (start ?? '').toString().trim();
+            const e = (end ?? '').toString().trim();
+            if (!s && !e) return '―';
+            if (!s) return escapeHtml(e);
+            if (!e) return escapeHtml(s);
+            return `${escapeHtml(s)} 〜 ${escapeHtml(e)}`;
+        }
+
         // Show Preview
         async function showPreview() {
             const modal = document.getElementById('preview_modal');
             const content = document.getElementById('preview_content');
-            
+
             content.innerHTML = generatePrintHTML(false);
             modal.style.display = 'block';
         }
@@ -1450,86 +1613,207 @@
 
         function generatePrintHTML(forPrint) {
             const data = collectFormData();
-            
-            let html = '<div style="position: relative; width: 210mm; min-height: 297mm; padding: 20mm; font-family: \'MS Gothic\', sans-serif; font-size: 10pt;">';
-            
-            // Header
-            html += '<div style="text-align: center; margin-bottom: 20px;">';
-            html += '<h1 style="font-size: 24pt; margin: 0;">履 歴 書</h1>';
-            html += '</div>';
-            
-            // Photo and Basic Info
-            html += '<div style="display: flex; gap: 20px; margin-bottom: 20px;">';
-            
-            if (data.photo) {
-                html += `<div style="width: 40mm; height: 50mm; border: 1px solid #000;">
-                    <img src="${data.photo}" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>`;
-            }
-            
-            html += '<div style="flex: 1;">';
-            html += `<table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
-                <tr>
-                    <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0; width: 30%;">氏名</td>
-                    <td style="border: 1px solid #000; padding: 5px; font-weight: bold; font-size: 14pt;">${data.name_kanji}</td>
-                    <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0; width: 20%;">ID</td>
-                    <td style="border: 1px solid #000; padding: 5px;">${data.applicant_id}</td>
-                </tr>
-                <tr>
-                    <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0;">フリガナ</td>
-                    <td style="border: 1px solid #000; padding: 5px;" colspan="3">${data.name_furigana}</td>
-                </tr>
-                <tr>
-                    <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0;">生年月日</td>
-                    <td style="border: 1px solid #000; padding: 5px;">${data.birthday}</td>
-                    <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0;">年齢</td>
-                    <td style="border: 1px solid #000; padding: 5px;">${data.age}歳</td>
-                </tr>
-                <tr>
-                    <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0;">性別</td>
-                    <td style="border: 1px solid #000; padding: 5px;">${data.gender}</td>
-                    <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0;">国籍</td>
-                    <td style="border: 1px solid #000; padding: 5px;">${data.nationality}</td>
-                </tr>
-            </table>`;
-            html += '</div></div>';
-            
-            // Address
-            html += `<table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 15px;">
-                <tr>
-                    <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0; width: 15%;">郵便番号</td>
-                    <td style="border: 1px solid #000; padding: 5px;" colspan="3">${data.postal_code}</td>
-                </tr>
-                <tr>
-                    <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0;">住所</td>
-                    <td style="border: 1px solid #000; padding: 5px;" colspan="3">${data.address}</td>
-                </tr>
-                <tr>
-                    <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0;">携帯電話</td>
-                    <td style="border: 1px solid #000; padding: 5px;">${data.mobile}</td>
-                    <td style="border: 1px solid #000; padding: 5px; background: #f0f0f0;">電話番号</td>
-                    <td style="border: 1px solid #000; padding: 5px;">${data.phone}</td>
-                </tr>
-            </table>`;
-            
-            // Job History
-            if (data.jobHistory.length > 0) {
-                html += '<h3 style="background: #f0f0f0; padding: 5px; margin: 15px 0 5px;">職務経歴</h3>';
-                html += '<table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">';
-                html += '<tr style="background: #f0f0f0;"><th style="border: 1px solid #000; padding: 5px;">期間</th><th style="border: 1px solid #000; padding: 5px;">派遣元</th><th style="border: 1px solid #000; padding: 5px;">派遣先</th><th style="border: 1px solid #000; padding: 5px;">作業内容</th></tr>';
-                data.jobHistory.forEach(job => {
-                    html += `<tr>
-                        <td style="border: 1px solid #000; padding: 5px;">${job.start} 〜 ${job.end}</td>
-                        <td style="border: 1px solid #000; padding: 5px;">${job.hakenmoto}</td>
-                        <td style="border: 1px solid #000; padding: 5px;">${job.hakensaki}</td>
-                        <td style="border: 1px solid #000; padding: 5px;">${job.content}</td>
-                    </tr>`;
-                });
-                html += '</table>';
-            }
-            
-            html += '</div>';
-            return html;
+            const jobRows = (data.jobHistory || [])
+                .filter(job => [job.start, job.end, job.hakenmoto, job.hakensaki, job.content, job.reason].some(field => (field ?? '').toString().trim()))
+                .map(job => `
+                    <tr>
+                        <td>${formatPeriod(job.start, job.end)}</td>
+                        <td>${formatValue(job.hakenmoto)}</td>
+                        <td>${formatValue(job.hakensaki)}</td>
+                        <td>${formatValue(job.content)}</td>
+                        <td>${formatValue(job.reason)}</td>
+                    </tr>
+                `)
+                .join('');
+
+            const familyRows = (data.familyMembers || [])
+                .filter(member => [member.name, member.relation, member.birthday, member.age, member.residence, member.dependent].some(field => (field ?? '').toString().trim()))
+                .map(member => `
+                    <tr>
+                        <td>${formatValue(member.name)}</td>
+                        <td>${formatValue(member.relation)}</td>
+                        <td>${formatValue(member.birthday)}</td>
+                        <td>${formatValue(member.age)}</td>
+                        <td>${formatValue(member.residence)}</td>
+                        <td>${formatValue(member.dependent)}</td>
+                    </tr>
+                `)
+                .join('');
+
+            const experiencesTags = (data.experiences || []).length
+                ? data.experiences.map(exp => `<span class="print-tag">${formatValue(exp)}</span>`).join('')
+                : '<span class="print-muted">経験作業の登録はありません</span>';
+
+            const photoContent = data.photo && data.photo !== window.location.href
+                ? `<img src="${escapeHtml(data.photo)}" alt="写真">`
+                : '<span class="print-muted">写真未登録</span>';
+
+            return `
+                <div class="print-page">
+                    <div class="print-header">
+                        <div class="print-photo-frame">${photoContent}</div>
+                        <table class="print-basic-table">
+                            <tr>
+                                <th>氏名</th>
+                                <td>${formatValue(data.name_kanji)}</td>
+                                <th>フリガナ</th>
+                                <td>${formatValue(data.name_furigana)}</td>
+                            </tr>
+                            <tr>
+                                <th>生年月日</th>
+                                <td>${formatValue(data.birthday)}</td>
+                                <th>年齢</th>
+                                <td>${formatValueWithUnit(data.age, '歳')}</td>
+                            </tr>
+                            <tr>
+                                <th>性別</th>
+                                <td>${formatValue(data.gender)}</td>
+                                <th>国籍</th>
+                                <td>${formatValue(data.nationality)}</td>
+                            </tr>
+                            <tr>
+                                <th>ID</th>
+                                <td>${formatValue(data.applicant_id)}</td>
+                                <th>居住地域</th>
+                                <td>${formatValue(data.region)}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="print-grid">
+                        <section class="print-section">
+                            <div class="print-section-title">住所・連絡先</div>
+                            <table class="print-table">
+                                <tr><th>郵便番号</th><td>${formatValue(data.postal_code)}</td></tr>
+                                <tr><th>住所</th><td>${formatValue(data.address)}</td></tr>
+                                <tr><th>携帯電話</th><td>${formatValue(data.mobile)}</td></tr>
+                                <tr><th>電話番号</th><td>${formatValue(data.phone)}</td></tr>
+                                <tr>
+                                    <th>緊急連絡先</th>
+                                    <td>
+                                        <span class="block">${formatValue(data.emergency_name)}</span>
+                                        <span class="block print-muted">続柄: ${formatValue(data.emergency_relation)}</span>
+                                        <span class="block print-muted">電話: ${formatValue(data.emergency_phone)}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </section>
+
+                        <section class="print-section">
+                            <div class="print-section-title">在留・身分証情報</div>
+                            <table class="print-table">
+                                <tr><th>在留資格</th><td>${formatValue(data.visa_type)}</td></tr>
+                                <tr><th>在留期間</th><td>${formatValue(data.visa_period)}</td></tr>
+                                <tr><th>在留期間満了日</th><td>${formatValue(data.visa_expiry)}</td></tr>
+                                <tr><th>資格外活動許可日</th><td>${formatValue(data.permission_date)}</td></tr>
+                                <tr><th>交付日</th><td>${formatValue(data.issue_date)}</td></tr>
+                                <tr><th>資格外活動</th><td>${formatMultiline(data.authorized_activity)}</td></tr>
+                                <tr><th>就労制限</th><td>${formatMultiline(data.employer_restriction)}</td></tr>
+                                <tr><th>在留カード番号</th><td>${formatValue(data.residence_card_no)}</td></tr>
+                                <tr><th>パスポート番号</th><td>${formatValue(data.passport_no)}</td></tr>
+                                <tr><th>パスポート有効期限</th><td>${formatValue(data.passport_expiry)}</td></tr>
+                            </table>
+                        </section>
+
+                        <section class="print-section">
+                            <div class="print-section-title">運転・保険</div>
+                            <table class="print-table">
+                                <tr><th>運転免許証番号</th><td>${formatValue(data.license_no)}</td></tr>
+                                <tr><th>免許種類</th><td>${formatValue(data.license_type)}</td></tr>
+                                <tr><th>免許有効期限</th><td>${formatValue(data.license_expiry)}</td></tr>
+                                <tr><th>車両所持</th><td>${formatValue(data.car_owner)}</td></tr>
+                                <tr><th>自動車保険</th><td>${formatValue(data.insurance)}</td></tr>
+                            </table>
+                        </section>
+
+                        <section class="print-section">
+                            <div class="print-section-title">日本語力・学歴</div>
+                            <table class="print-table">
+                                <tr><th>会話</th><td>${formatValue(data.speak_level)}</td></tr>
+                                <tr><th>聴解</th><td>${formatValue(data.listen_level)}</td></tr>
+                                <tr><th>漢字</th><td>${formatValue(data.kanji_level)}</td></tr>
+                                <tr><th>カナ読</th><td>${formatValue(data.kana_read)}</td></tr>
+                                <tr><th>カナ書</th><td>${formatValue(data.kana_write)}</td></tr>
+                                <tr><th>最終学歴</th><td>${formatValue(data.education)}</td></tr>
+                                <tr><th>専攻</th><td>${formatValue(data.major)}</td></tr>
+                            </table>
+                        </section>
+
+                        <section class="print-section">
+                            <div class="print-section-title">身体情報・健康状態</div>
+                            <table class="print-table">
+                                <tr><th>身長</th><td>${formatValueWithUnit(data.height, 'cm')}</td></tr>
+                                <tr><th>体重</th><td>${formatValueWithUnit(data.weight, 'kg')}</td></tr>
+                                <tr><th>服サイズ</th><td>${formatValue(data.uniform_size)}</td></tr>
+                                <tr><th>ウエスト</th><td>${formatValueWithUnit(data.waist, 'cm')}</td></tr>
+                                <tr><th>靴サイズ</th><td>${formatValueWithUnit(data.shoe_size, 'cm')}</td></tr>
+                                <tr><th>血液型</th><td>${formatValue(data.blood_type)}</td></tr>
+                                <tr><th>視力(右)</th><td>${formatValue(data.vision_right)}</td></tr>
+                                <tr><th>視力(左)</th><td>${formatValue(data.vision_left)}</td></tr>
+                                <tr><th>メガネ</th><td>${formatValue(data.glasses)}</td></tr>
+                                <tr><th>利き腕</th><td>${formatValue(data.dominant_arm)}</td></tr>
+                                <tr><th>アレルギー</th><td>${formatValue(data.allergy)}</td></tr>
+                                <tr><th>安全靴</th><td>${formatValue(data.safety_shoes)}</td></tr>
+                                <tr><th>ワクチン</th><td>${formatValue(data.vaccine)}</td></tr>
+                            </table>
+                        </section>
+
+                        <section class="print-section">
+                            <div class="print-section-title">勤務条件・備考</div>
+                            <table class="print-table">
+                                <tr><th>通勤片道時間</th><td>${formatValueWithUnit(data.commute_time, '分')}</td></tr>
+                                <tr><th>お弁当/食堂</th><td>${formatValue(data.lunch_pref)}</td></tr>
+                                <tr><th>特記事項</th><td>${formatMultiline(data.ocr_note)}</td></tr>
+                            </table>
+                        </section>
+
+                        <section class="print-section full-width">
+                            <div class="print-section-title">保有資格・経験作業</div>
+                            <table class="print-table" style="margin-bottom: 4mm;">
+                                <tr><th>有資格</th><td>${formatMultiline(data.qualifications)}</td></tr>
+                            </table>
+                            <div class="print-tags">${experiencesTags}</div>
+                        </section>
+                    </div>
+
+                    <section class="print-section" style="margin-bottom: 8mm;">
+                        <div class="print-section-title">職務経歴</div>
+                        <table class="print-table">
+                            <thead>
+                                <tr>
+                                    <th>期間</th>
+                                    <th>派遣元</th>
+                                    <th>派遣先</th>
+                                    <th>作業内容</th>
+                                    <th>退社理由</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${jobRows || '<tr><td colspan="5" style="text-align: center;" class="print-muted">職務経歴の登録はありません</td></tr>'}
+                            </tbody>
+                        </table>
+                    </section>
+
+                    <section class="print-section">
+                        <div class="print-section-title">家族構成</div>
+                        <table class="print-table">
+                            <thead>
+                                <tr>
+                                    <th>氏名</th>
+                                    <th>続柄</th>
+                                    <th>生年月日</th>
+                                    <th>年齢</th>
+                                    <th>居住</th>
+                                    <th>扶養</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${familyRows || '<tr><td colspan="6" style="text-align: center;" class="print-muted">家族構成の登録はありません</td></tr>'}
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+            `;
         }
 
         // Save Data
