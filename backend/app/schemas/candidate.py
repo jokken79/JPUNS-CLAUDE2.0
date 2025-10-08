@@ -230,6 +230,13 @@ class DocumentUpload(BaseModel):
 class CandidateApprove(BaseModel):
     """Approve candidate"""
     notes: Optional[str] = None
+    promote_to_employee: bool = True
+    factory_id: Optional[str] = None
+    hire_date: Optional[date] = None
+    jikyu: Optional[int] = None
+    position: Optional[str] = None
+    contract_type: Optional[str] = None
+    hakensaki_shain_id: Optional[str] = None
 
 
 class CandidateReject(BaseModel):

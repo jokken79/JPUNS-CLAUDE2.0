@@ -11,7 +11,7 @@ from typing import Optional
 
 from app.core.database import get_db
 from app.core.config import settings
-from app.models.models import Candidate, Document, User, CandidateStatus, DocumentType
+from app.models.models import Candidate, Document, Employee, User, CandidateStatus, DocumentType
 from app.schemas.candidate import (
     CandidateCreate, CandidateUpdate, CandidateResponse,
     CandidateApprove, CandidateReject, DocumentUpload, OCRData
@@ -25,6 +25,18 @@ import logging
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
+
+
+def _build_emergency_contact(candidate: "Candidate") -> Optional[str]:
+    """Build emergency contact string combining name and relation."""
+    parts = []
+    if getattr(candidate, "emergency_contact_name", None):
+        parts.append(candidate.emergency_contact_name)
+    if getattr(candidate, "emergency_contact_relation", None):
+        parts.append(f"({candidate.emergency_contact_relation})")
+
+    contact = " ".join(parts).strip()
+    return contact or None
 
 
 def generate_rirekisho_id(db: Session) -> str:
@@ -286,10 +298,80 @@ async def approve_candidate(
     candidate.status = CandidateStatus.APPROVED
     candidate.approved_by = current_user.id
     candidate.approved_at = func.now()
-    
+
+    if approve_data.promote_to_employee:
+        # Avoid creating duplicate employees for the same rirekisho_id
+        existing_employee = db.query(Employee).filter(Employee.rirekisho_id == candidate.rirekisho_id).first()
+
+        if not existing_employee:
+            employee_name = candidate.full_name_kanji or candidate.full_name_roman
+            if not employee_name:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Candidate name is required to create an employee",
+                )
+
+            last_employee = db.query(Employee).order_by(Employee.hakenmoto_id.desc()).first()
+            next_hakenmoto_id = (last_employee.hakenmoto_id + 1) if last_employee else 1
+
+            address_parts = [
+                candidate.current_address,
+                candidate.address_banchi,
+                candidate.building_name,
+            ]
+            candidate_address = " ".join([part for part in address_parts if part]) or candidate.registered_address
+
+            jikyu_value = approve_data.jikyu if approve_data.jikyu is not None else 0
+
+            new_employee = Employee(
+                hakenmoto_id=next_hakenmoto_id,
+                rirekisho_id=candidate.rirekisho_id,
+                factory_id=approve_data.factory_id,
+                hakensaki_shain_id=approve_data.hakensaki_shain_id,
+                full_name_kanji=employee_name,
+                full_name_kana=candidate.full_name_kana,
+                photo_url=candidate.photo_url,
+                date_of_birth=candidate.date_of_birth,
+                gender=candidate.gender,
+                nationality=candidate.nationality,
+                zairyu_card_number=candidate.residence_card_number,
+                zairyu_expire_date=candidate.residence_expiry,
+                address=candidate_address,
+                postal_code=candidate.postal_code,
+                phone=candidate.mobile or candidate.phone,
+                email=candidate.email,
+                emergency_contact=_build_emergency_contact(candidate),
+                emergency_phone=candidate.emergency_contact_phone,
+                hire_date=approve_data.hire_date or candidate.hire_date,
+                jikyu=jikyu_value,
+                position=approve_data.position,
+                contract_type=approve_data.contract_type,
+                notes=approve_data.notes,
+            )
+
+            db.add(new_employee)
+            db.flush()
+
+            # Copy candidate documents to the new employee profile
+            candidate_documents = db.query(Document).filter(Document.candidate_id == candidate.id).all()
+            for doc in candidate_documents:
+                employee_document = Document(
+                    employee_id=new_employee.id,
+                    candidate_id=None,
+                    document_type=doc.document_type,
+                    file_name=doc.file_name,
+                    file_path=doc.file_path,
+                    file_size=doc.file_size,
+                    mime_type=doc.mime_type,
+                    ocr_data=doc.ocr_data,
+                    uploaded_by=current_user.id,
+                )
+                db.add(employee_document)
+        candidate.status = CandidateStatus.HIRED
+
     db.commit()
     db.refresh(candidate)
-    
+
     return candidate
 
 
