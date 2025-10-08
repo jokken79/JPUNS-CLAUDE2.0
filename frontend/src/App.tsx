@@ -20,42 +20,45 @@ import ImportData from './pages/ImportData';
 // Components
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import VisibilityGuard from './components/VisibilityGuard';
+import { PageVisibilityProvider } from './context/PageVisibilityContext';
 
 // Styles
 import './index.css';
 
 function App() {
   return (
-    <Router>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: '#22c55e',
-              secondary: '#fff',
+    <PageVisibilityProvider>
+      <Router>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
             },
-          },
-          error: {
-            duration: 5000,
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#22c55e',
+                secondary: '#fff',
+              },
             },
-          },
-        }}
-      />
-      
-      <Routes>
+            error: {
+              duration: 5000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
+
+        <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
-        
+
         {/* Protected Routes */}
         <Route
           path="/"
@@ -66,26 +69,125 @@ function App() {
           }
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="candidates" element={<Candidates />} />
-          <Route path="candidates/new" element={<CandidateForm />} />
-          <Route path="candidates/:id" element={<CandidateForm />} />
-          <Route path="employees" element={<Employees />} />
-          <Route path="employees-extended" element={<EmployeesExtended />} />
-          <Route path="employees/new" element={<EmployeeForm />} />
-          <Route path="employees/:id" element={<EmployeeDetail />} />
-          <Route path="employees/:id/edit" element={<EmployeeForm />} />
-          <Route path="factories" element={<Factories />} />
-          <Route path="timer-cards" element={<TimerCards />} />
-          <Route path="salary" element={<Salary />} />
-          <Route path="requests" element={<Requests />} />
-          <Route path="import-data" element={<ImportData />} />
+          <Route
+            path="dashboard"
+            element={(
+              <VisibilityGuard pageKey="dashboard">
+                <Dashboard />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="candidates"
+            element={(
+              <VisibilityGuard pageKey="candidates">
+                <Candidates />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="candidates/new"
+            element={(
+              <VisibilityGuard pageKey="candidates">
+                <CandidateForm />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="candidates/:id"
+            element={(
+              <VisibilityGuard pageKey="candidates">
+                <CandidateForm />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="employees"
+            element={(
+              <VisibilityGuard pageKey="employees">
+                <Employees />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="employees-extended"
+            element={(
+              <VisibilityGuard pageKey="employeesExtended">
+                <EmployeesExtended />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="employees/new"
+            element={(
+              <VisibilityGuard pageKey="employees">
+                <EmployeeForm />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="employees/:id"
+            element={(
+              <VisibilityGuard pageKey="employees">
+                <EmployeeDetail />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="employees/:id/edit"
+            element={(
+              <VisibilityGuard pageKey="employees">
+                <EmployeeForm />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="factories"
+            element={(
+              <VisibilityGuard pageKey="factories">
+                <Factories />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="timer-cards"
+            element={(
+              <VisibilityGuard pageKey="timerCards">
+                <TimerCards />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="salary"
+            element={(
+              <VisibilityGuard pageKey="salary">
+                <Salary />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="requests"
+            element={(
+              <VisibilityGuard pageKey="requests">
+                <Requests />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="import-data"
+            element={(
+              <VisibilityGuard pageKey="importData">
+                <ImportData />
+              </VisibilityGuard>
+            )}
+          />
         </Route>
-        
+
         {/* 404 */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
+    </PageVisibilityProvider>
   );
 }
 
