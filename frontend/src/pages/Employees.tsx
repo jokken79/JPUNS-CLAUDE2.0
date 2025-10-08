@@ -37,6 +37,25 @@ interface PaginatedResponse {
   total_pages: number;
 }
 
+type ColumnKey =
+  | 'employeeNumber'
+  | 'fullName'
+  | 'kanaName'
+  | 'contractType'
+  | 'factory'
+  | 'hourlyWage'
+  | 'hireDate'
+  | 'status'
+  | 'actions';
+
+interface ColumnDefinition {
+  key: ColumnKey;
+  label: string;
+  headerClassName: string;
+  cellClassName: string;
+  render: (employee: Employee) => React.ReactNode;
+}
+
 const Employees: React.FC = () => {
   const navigate = useNavigate();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -48,6 +67,17 @@ const Employees: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>({
+    employeeNumber: true,
+    fullName: true,
+    kanaName: true,
+    contractType: true,
+    factory: true,
+    hourlyWage: true,
+    hireDate: true,
+    status: true,
+    actions: true,
+  });
   const pageSize = 500; // Mostrar hasta 500 empleados por página
 
   useEffect(() => {
@@ -136,6 +166,117 @@ const Employees: React.FC = () => {
     );
   };
 
+  const columnDefinitions: ColumnDefinition[] = [
+    {
+      key: 'employeeNumber',
+      label: '社員№',
+      headerClassName:
+        'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900',
+      render: (employee) => employee.hakenmoto_id,
+    },
+    {
+      key: 'fullName',
+      label: '氏名',
+      headerClassName:
+        'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'px-6 py-4 whitespace-nowrap text-sm text-gray-900',
+      render: (employee) => employee.full_name_kanji,
+    },
+    {
+      key: 'kanaName',
+      label: 'カナ',
+      headerClassName:
+        'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'px-6 py-4 whitespace-nowrap text-sm text-gray-500',
+      render: (employee) => employee.full_name_kana || '-',
+    },
+    {
+      key: 'contractType',
+      label: '契約形態',
+      headerClassName:
+        'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'px-6 py-4 whitespace-nowrap text-sm',
+      render: (employee) => getContractTypeBadge(employee.contract_type),
+    },
+    {
+      key: 'factory',
+      label: '派遣先',
+      headerClassName:
+        'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'px-6 py-4 whitespace-nowrap text-sm text-gray-900',
+      render: (employee) => employee.factory_name || employee.factory_id || '-',
+    },
+    {
+      key: 'hourlyWage',
+      label: '時給',
+      headerClassName:
+        'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'px-6 py-4 whitespace-nowrap text-sm text-gray-900',
+      render: (employee) => formatCurrency(employee.jikyu),
+    },
+    {
+      key: 'hireDate',
+      label: '入社日',
+      headerClassName:
+        'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'px-6 py-4 whitespace-nowrap text-sm text-gray-500',
+      render: (employee) => formatDate(employee.hire_date),
+    },
+    {
+      key: 'status',
+      label: '状態',
+      headerClassName:
+        'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'px-6 py-4 whitespace-nowrap',
+      render: (employee) => getStatusBadge(employee.is_active),
+    },
+    {
+      key: 'actions',
+      label: '操作',
+      headerClassName:
+        'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'px-6 py-4 whitespace-nowrap text-sm font-medium',
+      render: (employee) => (
+        <>
+          <button
+            onClick={() => navigate(`/employees/${employee.id}`)}
+            className="text-blue-600 hover:text-blue-900 mr-3"
+            title="詳細を見る"
+          >
+            <EyeIcon className="h-5 w-5 inline" />
+          </button>
+          <button
+            onClick={() => navigate(`/employees/${employee.id}/edit`)}
+            className="text-gray-600 hover:text-gray-900"
+            title="編集"
+          >
+            <PencilIcon className="h-5 w-5 inline" />
+          </button>
+        </>
+      ),
+    },
+  ];
+
+  const handleColumnToggle = (key: ColumnKey) => {
+    setVisibleColumns((prev) => {
+      const visibleCount = Object.values(prev).filter(Boolean).length;
+
+      if (visibleCount <= 1 && prev[key]) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [key]: !prev[key],
+      };
+    });
+  };
+
+  const visibleColumnDefinitions = columnDefinitions.filter(
+    (column) => visibleColumns[column.key]
+  );
+
   if (loading && employees.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -223,6 +364,26 @@ const Employees: React.FC = () => {
               />
             </div>
           </div>
+
+          <div className="pt-4 border-t border-gray-200">
+            <span className="block text-sm font-medium text-gray-700 mb-2">
+              表示する列
+            </span>
+            <div className="flex flex-wrap gap-4">
+              {columnDefinitions.map((column) => (
+                <label key={column.key} className="inline-flex items-center text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    checked={visibleColumns[column.key]}
+                    onChange={() => handleColumnToggle(column.key)}
+                  />
+                  <span className="ml-2">{column.label}</span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-gray-500">※最低1列は表示する必要があります。</p>
+          </div>
         </form>
       </div>
 
@@ -239,85 +400,31 @@ const Employees: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  社員№
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  氏名
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  カナ
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  契約形態
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  派遣先
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  時給
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  入社日
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  状態
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  操作
-                </th>
+                {visibleColumnDefinitions.map((column) => (
+                  <th key={column.key} className={column.headerClassName}>
+                    {column.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {employees.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-sm text-gray-500">
+                  <td
+                    colSpan={visibleColumnDefinitions.length}
+                    className="px-6 py-12 text-center text-sm text-gray-500"
+                  >
                     従業員が見つかりませんでした
                   </td>
                 </tr>
               ) : (
                 employees.map((employee) => (
                   <tr key={employee.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {employee.hakenmoto_id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {employee.full_name_kanji}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {employee.full_name_kana || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {getContractTypeBadge(employee.contract_type)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {employee.factory_name || employee.factory_id || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatCurrency(employee.jikyu)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(employee.hire_date)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(employee.is_active)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => navigate(`/employees/${employee.id}`)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                        title="詳細を見る"
-                      >
-                        <EyeIcon className="h-5 w-5 inline" />
-                      </button>
-                      <button
-                        onClick={() => navigate(`/employees/${employee.id}/edit`)}
-                        className="text-gray-600 hover:text-gray-900"
-                        title="編集"
-                      >
-                        <PencilIcon className="h-5 w-5 inline" />
-                      </button>
-                    </td>
+                    {visibleColumnDefinitions.map((column) => (
+                      <td key={column.key} className={column.cellClassName}>
+                        {column.render(employee)}
+                      </td>
+                    ))}
                   </tr>
                 ))
               )}
