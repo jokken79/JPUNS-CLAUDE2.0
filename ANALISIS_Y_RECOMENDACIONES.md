@@ -108,12 +108,12 @@ El sistema está diseñado para ser fácil de instalar y operar, incluso para us
     - `SECRET_KEY`: Clave secreta para la seguridad de la aplicación.
     - `GEMINI_API_KEY`: Clave de la API de Google Gemini para el OCR.
     - (Opcional) Credenciales para el servidor de correo (`SMTP_*`) y LINE.
-4.  El script construirá las imágenes de Docker e iniciará los servicios.
+4.  El script descargará las imágenes más recientes (`docker compose pull`) y reconstruirá los servicios para garantizar que las actualizaciones queden aplicadas automáticamente.
 
 ### 4.3. Uso Diario
 
-- **Iniciar la aplicación:** Ejecutar `start-app.bat`.
-- **Detener la aplicación:** Ejecutar `stop-app.bat`.
+- **Iniciar la aplicación:** Ejecutar `start-app.bat`. El asistente detecta automáticamente si se dispone de `docker compose` o `docker-compose`, permite actualizar las imágenes con `pull` y reconstruir los contenedores antes de iniciar los servicios.
+- **Detener la aplicación:** Ejecutar `stop-app.bat`. El script reutiliza la misma detección de Docker Compose y recuerda cómo eliminar completamente los servicios con `down`.
 
 ### 4.4. Acceso al Sistema
 

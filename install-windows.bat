@@ -1,10 +1,28 @@
 @echo off
+setlocal
+
 echo ==========================================
 echo UNS-ClaudeJP 2.0 - Windows Installation
 echo ==========================================
 echo.
 
-REM Check if Docker is installed
+echo Detecting Docker Compose...
+set "DOCKER_COMPOSE_CMD="
+docker compose version >nul 2>&1
+if %errorlevel% EQU 0 (
+    set "DOCKER_COMPOSE_CMD=docker compose"
+) else (
+    docker-compose version >nul 2>&1
+    if %errorlevel% EQU 0 (
+        set "DOCKER_COMPOSE_CMD=docker-compose"
+    ) else (
+        echo [ERROR] Docker Compose is not installed!
+        echo Please install Docker Desktop or enable Docker Compose V2.
+        pause
+        exit /b 1
+    )
+)
+
 echo Checking Docker...
 docker --version >nul 2>&1
 if errorlevel 1 (
@@ -17,7 +35,6 @@ if errorlevel 1 (
 echo [OK] Docker is installed
 echo.
 
-REM Check if Docker is running
 echo Checking Docker status...
 docker ps >nul 2>&1
 if errorlevel 1 (
@@ -29,7 +46,6 @@ if errorlevel 1 (
 echo [OK] Docker is running
 echo.
 
-REM Create necessary directories
 echo Creating directories...
 if not exist "uploads" mkdir uploads
 if not exist "logs" mkdir logs
@@ -37,10 +53,10 @@ if not exist "config\factories" mkdir config\factories
 echo [OK] Directories created
 echo.
 
-REM Check .env file
+echo Checking .env file...
 if not exist ".env" (
     echo Creating .env file...
-    copy .env.example .env
+    copy .env.example .env >nul
     echo.
     echo [IMPORTANT] Please edit .env file:
     echo   1. Change DB_PASSWORD
@@ -49,15 +65,21 @@ if not exist ".env" (
     echo.
     echo Do you want to edit .env now? (Y/N)
     set /p EDIT_ENV=
-    if /i "%EDIT_ENV%"=="Y" (
+    if /I "%EDIT_ENV%"=="Y" (
         notepad .env
     )
 )
 echo.
 
-REM Build Docker images
+echo Pulling latest container images (this may take a moment)...
+call %DOCKER_COMPOSE_CMD% pull
+if errorlevel 1 (
+    echo [WARNING] Could not pull updated images. Continuing with local cache.
+)
+echo.
+
 echo Building Docker images...
-docker-compose up -d --build
+call %DOCKER_COMPOSE_CMD% up -d --build
 if errorlevel 1 (
     echo [ERROR] Build failed
     pause
@@ -66,12 +88,10 @@ if errorlevel 1 (
 echo [OK] Build complete
 echo.
 
-REM Wait for services to be ready
 echo Waiting for services to initialize...
 timeout /t 20 /nobreak >nul
 echo.
 
-REM Check if services are responding
 echo Checking service health...
 curl -s http://localhost:8000/ >nul 2>&1
 if errorlevel 1 (
@@ -80,10 +100,9 @@ if errorlevel 1 (
 )
 echo.
 
-REM Get local IP
 for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4"') do (
     set LOCAL_IP=%%a
-    goto :found_ip
+    goto found_ip
 )
 :found_ip
 set LOCAL_IP=%LOCAL_IP:~1%
@@ -109,17 +128,18 @@ echo.
 echo Useful commands:
 echo   - Quick start: start-app.bat
 echo   - Quick stop: stop-app.bat
-echo   - View logs: docker-compose logs -f
-echo   - Stop: docker-compose stop
-echo   - Start: docker-compose start
-echo   - Restart: docker-compose restart
-echo   - Remove: docker-compose down
+echo   - View logs: %DOCKER_COMPOSE_CMD% logs -f
+echo   - Stop: %DOCKER_COMPOSE_CMD% stop
+echo   - Start: %DOCKER_COMPOSE_CMD% start
+echo   - Restart: %DOCKER_COMPOSE_CMD% restart
+echo   - Remove: %DOCKER_COMPOSE_CMD% down
 echo.
 echo Open application in browser? (Y/N)
 set /p OPEN_BROWSER=
-if /i "%OPEN_BROWSER%"=="Y" (
+if /I "%OPEN_BROWSER%"=="Y" (
     start http://localhost:3000
     start http://localhost:8000/api/docs
 )
 echo.
+endlocal
 pause
