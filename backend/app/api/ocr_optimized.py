@@ -95,19 +95,19 @@ async def process_ocr_from_base64(request: Dict):
         mime_type = request["mime_type"]
         document_type = request["document_type"]
         
-        # Procesar con el servicio OCR
+        # Procesar con el servicio OCR (ahora asíncrono)
         start_time = time.time()
         
-        result = optimized_ocr_service.process_from_base64(
-            image_base64, 
-            mime_type, 
+        result = await optimized_ocr_service.process_from_base64(
+            image_base64,
+            mime_type,
             document_type
         )
         
         elapsed = time.time() - start_time
         
         return {
-            "success": True, 
+            "success": True,
             "data": result,
             "processing_time": f"{elapsed:.2f}s"
         }

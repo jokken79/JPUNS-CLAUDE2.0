@@ -199,7 +199,7 @@ class OptimizedOCRService:
             logger.error(f"Error optimizing image: {e}")
             return image_path  # Si hay error, devolver la imagen original
     
-    def extract_text_with_gemini_api(self, image_path: str, timeout: int = OCR_TIMEOUT) -> Dict:
+    def extract_text_with_gemini_api(self, image_path: str, timeout: int = 30) -> Dict:
         """
         Extract structured data from image using Gemini API
         Returns dict with name, birthday, address, gender, nationality, etc.
@@ -208,6 +208,11 @@ class OptimizedOCRService:
             # Optimizar imagen para reducir tamaño
             start_time = time.time()
             logger.info(f"Extracting text with Gemini API from {image_path}")
+            
+            # Verificar que tenemos una API key válida
+            if not self.gemini_api_key or self.gemini_api_key == 'YOUR_API_KEY_HERE':
+                logger.warning("Gemini API key not configured")
+                return {}
             
             with open(image_path, 'rb') as image_file:
                 image_content = image_file.read()
@@ -281,6 +286,7 @@ class OptimizedOCRService:
             }
 
             logger.info("Calling Gemini API...")
+            # Reducir timeout para evitar que se quede atascado
             response = requests.post(url, json=payload, timeout=timeout)
 
             if response.status_code != 200:
@@ -298,6 +304,9 @@ class OptimizedOCRService:
             logger.info(f"Gemini API success in {time.time() - start_time:.2f}s")
             return parsed_data
 
+        except requests.exceptions.Timeout:
+            logger.error(f"Gemini API timeout after {timeout}s")
+            return {}
         except Exception as e:
             logger.error(f"Gemini API error: {e}")
             return {}
@@ -681,124 +690,157 @@ class OptimizedOCRService:
             # Optimizar imagen para mejorar OCR
             optimized_path = self.optimize_image(image_path)
             
-            # Iniciar extracción de rostro en paralelo
-            face_task = self.extract_face_from_zairyu_card_async(optimized_path)
+            # Iniciar extracción de rostro en paralelo con timeout
+            try:
+                face_task = asyncio.create_task(
+                    self.extract_face_from_zairyu_card_async(optimized_path)
+                )
+                face_task = asyncio.wait_for(face_task, timeout=30)  # 30s timeout para face extraction
+            except asyncio.TimeoutError:
+                logger.warning("Face extraction timeout, continuing without photo")
+                face_task = None
             
-            # Iniciar todas las tareas OCR en paralelo
+            # Iniciar todas las tareas OCR en paralelo con timeouts
             loop = asyncio.get_event_loop()
             ocr_tasks = []
             
             # Tarea 1: Gemini API (mejor calidad)
             if self.gemini_api_key and self.gemini_api_key != 'YOUR_API_KEY_HERE':
-                ocr_tasks.append(
-                    loop.run_in_executor(
-                        self.thread_pool,
-                        self.extract_text_with_gemini_api,
-                        optimized_path
-                    )
+                gemini_task = loop.run_in_executor(
+                    self.thread_pool,
+                    self.extract_text_with_gemini_api,
+                    optimized_path
                 )
+                ocr_tasks.append(('gemini', gemini_task))
             
             # Tarea 2: Vision API
             if self.vision_api_key and self.vision_api_key != 'YOUR_API_KEY_HERE':
-                # Extraer texto con Vision API y luego parsearlo
                 vision_task = loop.run_in_executor(
                     self.thread_pool,
                     self.extract_text_with_vision_api,
                     optimized_path
                 )
-                ocr_tasks.append(vision_task)
+                ocr_tasks.append(('vision', vision_task))
             
-            # Tarea 3: Tesseract (offline)
+            # Tarea 3: Tesseract (offline) - siempre disponible
             tesseract_task = loop.run_in_executor(
                 self.thread_pool,
                 self.extract_text_with_tesseract_multi,
                 optimized_path
             )
-            ocr_tasks.append(tesseract_task)
+            ocr_tasks.append(('tesseract', tesseract_task))
             
-            # Recopilar resultados a medida que estén disponibles
+            # Recopilar resultados con timeout general
             results = []
-            tasks_completed = 0
-            
-            # Lista para almacenar los textos de Vision API y Tesseract para parseo posterior
             raw_texts = []
             
-            # Esperar a que complete cualquier tarea
-            for i, future in enumerate(asyncio.as_completed(ocr_tasks)):
-                try:
-                    result = await future
-                    tasks_completed += 1
-                    
-                    # Si es la primera tarea (Gemini), ya viene estructurada
-                    if i == 0 and self.gemini_api_key and self.gemini_api_key != 'YOUR_API_KEY_HERE':
-                        if self._validate_result(result):
-                            # Agregar método y confianza
-                            result['ocr_method'] = 'gemini'
-                            result['confidence'] = 100
-                            results.append(result)
-                            logger.info("Gemini API returned valid result")
-                            break  # Usar primer resultado exitoso
-                    else:
-                        # Es texto de Vision API o Tesseract, guardarlo para procesar
-                        if result and isinstance(result, str) and len(result) > 50:
-                            raw_texts.append((i, result))
-                            logger.info(f"Raw text extraction successful (method {i})")
-                
-                except Exception as e:
-                    logger.error(f"OCR task {i} failed: {e}")
-            
-            # Si no hay resultado de Gemini, procesar los textos extraídos
-            if not results and raw_texts:
-                for i, text in raw_texts:
+            try:
+                # Esperar por cualquier resultado con timeout global
+                for task_name, task in ocr_tasks:
                     try:
-                        # Parsear el texto
-                        parsed_result = self.parse_zairyu_card(text)
+                        # Timeout individual para cada tarea
+                        result = await asyncio.wait_for(task, timeout=45)
                         
-                        # Validar resultado
-                        if self._validate_result(parsed_result):
-                            # Determinar método y confianza
-                            if i == 1:  # Vision API
-                                parsed_result['ocr_method'] = 'vision'
-                                parsed_result['confidence'] = 80
-                            else:  # Tesseract
-                                parsed_result['ocr_method'] = 'tesseract'
-                                parsed_result['confidence'] = 60
-                            
-                            results.append(parsed_result)
-                            logger.info(f"Parsed valid result from method {i}")
-                            break  # Usar primer resultado exitoso
+                        if task_name == 'gemini':
+                            # Gemini ya devuelve datos estructurados
+                            if self._validate_result(result):
+                                result['ocr_method'] = 'gemini'
+                                result['confidence'] = 100
+                                results.append(result)
+                                logger.info("Gemini API returned valid result")
+                                break
+                        else:
+                            # Vision y Tesseract devuelven texto
+                            if result and isinstance(result, str) and len(result) > 50:
+                                raw_texts.append((task_name, result))
+                                logger.info(f"Raw text extraction successful ({task_name})")
+                    
+                    except asyncio.TimeoutError:
+                        logger.warning(f"{task_name} OCR timeout")
                     except Exception as e:
-                        logger.error(f"Error parsing text from method {i}: {e}")
+                        logger.error(f"{task_name} OCR error: {e}")
+                
+                # Si no hay resultado de Gemini, procesar los textos extraídos
+                if not results and raw_texts:
+                    for task_name, text in raw_texts:
+                        try:
+                            parsed_result = self.parse_zairyu_card(text)
+                            
+                            if self._validate_result(parsed_result):
+                                parsed_result['ocr_method'] = task_name
+                                parsed_result['confidence'] = 80 if task_name == 'vision' else 60
+                                results.append(parsed_result)
+                                logger.info(f"Parsed valid result from {task_name}")
+                                break
+                        except Exception as e:
+                            logger.error(f"Error parsing text from {task_name}: {e}")
+                
+                # Si todavía no hay resultados, crear un resultado básico
+                if not results:
+                    logger.warning("All OCR methods failed, returning basic result")
+                    basic_result = {
+                        "name": "",
+                        "birthday": "",
+                        "address": "",
+                        "nationality": "",
+                        "gender": "",
+                        "card_number": "",
+                        "visa_type": "",
+                        "visa_expiry": "",
+                        "ocr_method": "fallback",
+                        "confidence": 0,
+                        "error": "No valid OCR results obtained"
+                    }
+                    
+                    # Esperar a que la extracción de rostro termine (si está disponible)
+                    if face_task:
+                        try:
+                            face_photo = await face_task
+                            if face_photo:
+                                basic_result['photo'] = face_photo
+                        except Exception as e:
+                            logger.warning(f"Face extraction failed in fallback: {e}")
+                    
+                    # Agregar metadatos
+                    basic_result['processed_at'] = datetime.now().isoformat()
+                    
+                    # Guardar en caché para no reintentar
+                    self._save_cache(image_hash, basic_result)
+                    
+                    return basic_result
+                
+                # Obtener el mejor resultado
+                best_result = results[0]
+                
+                # Esperar a que la extracción de rostro termine (si está disponible)
+                if face_task:
+                    try:
+                        face_photo = await face_task
+                        if face_photo:
+                            best_result['photo'] = face_photo
+                    except Exception as e:
+                        logger.warning(f"Face extraction failed: {e}")
+                
+                # Agregar metadatos
+                best_result['processed_at'] = datetime.now().isoformat()
+                
+                # Guardar en caché
+                self._save_cache(image_hash, best_result)
+                
+                # Actualizar tiempo promedio de procesamiento
+                elapsed = time.time() - start_total
+                self.average_processing_time = (self.average_processing_time * (self.total_requests - 1) + elapsed) / self.total_requests
+                
+                logger.info(f"OCR complete using {best_result['ocr_method']} in {elapsed:.2f}s (confidence: {best_result['confidence']}%)")
+                return best_result
             
-            # Si no hay resultados válidos
-            if not results:
-                logger.warning("All OCR methods failed")
+            except asyncio.TimeoutError:
+                logger.error("Global OCR processing timeout")
                 return {
-                    "error": "No valid OCR results",
-                    "ocr_method": "failed",
+                    "error": "OCR processing timeout",
+                    "ocr_method": "timeout",
                     "confidence": 0
                 }
-            
-            # Obtener el mejor resultado
-            best_result = results[0]  # Ya ordenamos por prioridad: Gemini > Vision > Tesseract
-            
-            # Esperar a que la extracción de rostro termine
-            face_photo = await face_task
-            if face_photo:
-                best_result['photo'] = face_photo
-            
-            # Agregar metadatos
-            best_result['processed_at'] = datetime.now().isoformat()
-            
-            # Guardar en caché
-            self._save_cache(image_hash, best_result)
-            
-            # Actualizar tiempo promedio de procesamiento
-            elapsed = time.time() - start_total
-            self.average_processing_time = (self.average_processing_time * (self.total_requests - 1) + elapsed) / self.total_requests
-            
-            logger.info(f"OCR complete using {best_result['ocr_method']} in {elapsed:.2f}s (confidence: {best_result['confidence']}%)")
-            return best_result
         
         except Exception as e:
             logger.error(f"Parallel OCR processing error: {e}")
@@ -855,7 +897,7 @@ class OptimizedOCRService:
             )
             return {"raw_text": text}
     
-    def process_from_base64(self, image_base64: str, mime_type: str, document_type: str) -> Dict:
+    async def process_from_base64(self, image_base64: str, mime_type: str, document_type: str) -> Dict:
         """
         Process image from base64 string
         Used by frontend API endpoint
@@ -869,11 +911,8 @@ class OptimizedOCRService:
             with open(temp_path, 'wb') as f:
                 f.write(image_data)
             
-            # Procesar como archivo normal
-            loop = asyncio.get_event_loop()
-            result = loop.run_until_complete(
-                self.process_document(temp_path, document_type)
-            )
+            # Procesar como archivo normal (ahora es asíncrono)
+            result = await self.process_document(temp_path, document_type)
             
             # Limpiar archivo temporal
             try:
