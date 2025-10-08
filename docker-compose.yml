@@ -23,6 +23,25 @@ services:
       timeout: 5s
       retries: 5
 
+  # Data Importer
+  importer:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend
+    container_name: uns-claudejp-importer
+    restart: 'no'
+    environment:
+      DATABASE_URL: postgresql://uns_admin:${DB_PASSWORD:-uns_secure_pass_2025}@db:5432/uns_claudejp
+    volumes:
+      - ./backend:/app
+      - ./config:/app/config
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - uns-network
+    command: python scripts/import_data.py
+
   # Backend API (FastAPI)
   backend:
     build:
@@ -54,6 +73,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      importer:
+        condition: service_completed_successfully
     networks:
       - uns-network
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
