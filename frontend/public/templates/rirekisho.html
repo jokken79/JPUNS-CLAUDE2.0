@@ -1425,14 +1425,69 @@
                 if (type === 'zairyu') {
                     // Usar la función unificada para actualizar フリガナ
                     autoUpdateFurigana(textData.name || '');
-                    
+
                     // Si hay información adicional de kana desde OCR, usarla
                     if (textData.name_kana) {
                         document.getElementById('name_furigana').value = textData.name_kana;
                         document.getElementById('ocr_note').value = 'OCRからカナを取得してフリガナに設定しました';
                     }
-                    
+
                     logDebug("注意: 在留カードからフリガナを自動入力しました。フリガナの正確性を必ずご確認ください。");
+                } else if (type === 'license') {
+                    const licenseNumberField = document.getElementById('license_no');
+                    if (licenseNumberField && textData.license_number) {
+                        licenseNumberField.value = textData.license_number;
+                    }
+
+                    const licenseExpiryField = document.getElementById('license_expiry');
+                    if (licenseExpiryField && textData.license_expiry) {
+                        licenseExpiryField.value = textData.license_expiry;
+                    }
+
+                    const licenseTypeField = document.getElementById('license_type');
+                    if (licenseTypeField && textData.license_type) {
+                        const normalizedType = textData.license_type.trim();
+                        const typeMappings = [
+                            { keyword: '準中型', value: '準中型免許' },
+                            { keyword: '大型', value: '大型免許' },
+                            { keyword: '中型', value: '中型免許' },
+                            { keyword: '普通', value: '普通免許' },
+                            { keyword: '原付', value: '原付免許' }
+                        ];
+
+                        let matchedValue = '';
+                        for (const mapping of typeMappings) {
+                            if (normalizedType.includes(mapping.keyword)) {
+                                matchedValue = mapping.value;
+                                break;
+                            }
+                        }
+
+                        if (matchedValue) {
+                            const existingMappedOption = Array.from(licenseTypeField.options).find(option => option.value === matchedValue);
+                            if (!existingMappedOption) {
+                                licenseTypeField.add(new Option(matchedValue, matchedValue));
+                            }
+                            licenseTypeField.value = matchedValue;
+                        } else if (normalizedType) {
+                            const existingOption = Array.from(licenseTypeField.options).find(option => option.value === normalizedType);
+                            if (!existingOption) {
+                                licenseTypeField.add(new Option(normalizedType, normalizedType));
+                            }
+                            licenseTypeField.value = normalizedType;
+                        }
+                    }
+
+                    const issueDateField = document.getElementById('issue_date');
+                    if (issueDateField && textData.issue_date && !issueDateField.value) {
+                        issueDateField.value = textData.issue_date;
+                    }
+
+                    const ocrNoteField = document.getElementById('ocr_note');
+                    if (ocrNoteField && textData.license_conditions) {
+                        const existing = ocrNoteField.value ? `${ocrNoteField.value}\n` : '';
+                        ocrNoteField.value = `${existing}免許条件: ${textData.license_conditions}`;
+                    }
                 }
 
                 // Limpiar intervalo de procesamiento
@@ -1522,7 +1577,11 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos timeout
                 
-                const apiResponse = await fetch(`${CONFIG.API_BASE_URL}${endpoint}`, {
+                const documentType = type === 'license' ? 'license' : 'zairyu_card';
+                const endpointUrl = new URL(`${CONFIG.API_BASE_URL}${endpoint}`);
+                endpointUrl.searchParams.set('document_type', documentType);
+
+                const apiResponse = await fetch(endpointUrl.toString(), {
                     method: 'POST',
                     body: formData,
                     signal: controller.signal
