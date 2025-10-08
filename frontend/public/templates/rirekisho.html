@@ -636,6 +636,8 @@
         let ocrCompleted = false;
         let wanakanaErrorLogged = false; // Flag para no spammear el error de wanakana
         let currentOCREndpoint = 0; // Índice del endpoint OCR actual
+        const postalLookupCache = new Map();
+        let lastPostalLookup = { address: '', postal: '' };
 
         // Comprobar estado del servidor al cargar la página
         window.addEventListener('DOMContentLoaded', () => {
@@ -647,13 +649,24 @@
         // FUNCIÓN: Formatear fecha a formato japonés (año-mes-día)
         function formatDateJapanese(dateString) {
             if (!dateString) return '';
-            
+
             const date = new Date(dateString);
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
-            
+
             return `${year}-${month}-${day}`;
+        }
+
+        function formatJapanesePostalCode(code) {
+            if (!code) return '';
+
+            const numeric = String(code).replace(/[^0-9]/g, '');
+            if (numeric.length === 7) {
+                return `${numeric.slice(0, 3)}-${numeric.slice(3)}`;
+            }
+
+            return String(code);
         }
 
 
@@ -878,6 +891,89 @@
             }
         }
 
+        function debounce(fn, delay = 500) {
+            let timer;
+            return (...args) => {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn(...args), delay);
+            };
+        }
+
+        async function fetchPostalCodeFromZipcloud(addressQuery) {
+            const trimmedQuery = (addressQuery || '').trim();
+            if (!trimmedQuery || trimmedQuery.length < 3) {
+                return null;
+            }
+
+            const response = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?address=${encodeURIComponent(trimmedQuery)}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (data.status === 200 && Array.isArray(data.results) && data.results.length > 0) {
+                return data.results[0].zipcode;
+            }
+
+            if (data.message) {
+                throw new Error(data.message);
+            }
+
+            return null;
+        }
+
+        async function autoFillPostalCodeFromAddress(address, options = {}) {
+            const postalInput = document.getElementById('postal_code');
+            if (!postalInput) return;
+
+            const { force = false } = options;
+            const trimmedAddress = (address || '').trim();
+            if (!trimmedAddress) return;
+
+            if (!postalInput.dataset.manual) {
+                postalInput.dataset.manual = 'false';
+            }
+
+            if (!force && postalInput.dataset.manual === 'true' && postalInput.value) {
+                return;
+            }
+
+            if (lastPostalLookup.address === trimmedAddress && lastPostalLookup.postal) {
+                postalInput.value = lastPostalLookup.postal;
+                postalInput.dataset.manual = 'false';
+                return;
+            }
+
+            const normalizedAddress = trimmedAddress.replace(/\s+/g, '');
+            if (postalLookupCache.has(normalizedAddress)) {
+                const cachedPostal = postalLookupCache.get(normalizedAddress);
+                if (cachedPostal) {
+                    postalInput.value = cachedPostal;
+                    postalInput.dataset.manual = 'false';
+                    lastPostalLookup = { address: trimmedAddress, postal: cachedPostal };
+                }
+                return;
+            }
+
+            try {
+                const zipcode = await fetchPostalCodeFromZipcloud(trimmedAddress);
+                if (zipcode) {
+                    const formatted = formatJapanesePostalCode(zipcode);
+                    postalLookupCache.set(normalizedAddress, formatted);
+                    postalInput.value = formatted;
+                    postalInput.dataset.manual = 'false';
+                    lastPostalLookup = { address: trimmedAddress, postal: formatted };
+                    logDebug(`Código postal autocompletado (${formatted}) para ${trimmedAddress}`);
+                } else {
+                    postalLookupCache.set(normalizedAddress, null);
+                    logDebug(`No se encontró código postal para ${trimmedAddress}`);
+                }
+            } catch (error) {
+                postalLookupCache.set(normalizedAddress, null);
+                logDebug(`Error al obtener código postal: ${error.message}`);
+            }
+        }
+
         // Comprobar estado del servidor
         async function checkServerStatus() {
             const serverStatus = document.getElementById('server_status');
@@ -939,6 +1035,33 @@
                 reader.readAsDataURL(file);
             }
         });
+
+        const postalInput = document.getElementById('postal_code');
+        if (postalInput) {
+            postalInput.dataset.manual = 'false';
+            postalInput.addEventListener('input', () => {
+                postalInput.dataset.manual = 'true';
+            });
+            postalInput.addEventListener('blur', () => {
+                if (!postalInput.value) return;
+                postalInput.value = formatJapanesePostalCode(postalInput.value);
+            });
+        }
+
+        const addressInput = document.getElementById('address');
+        if (addressInput) {
+            const debouncedPostalUpdater = debounce((value) => {
+                autoFillPostalCodeFromAddress(value);
+            }, 800);
+
+            addressInput.addEventListener('input', (event) => {
+                debouncedPostalUpdater(event.target.value);
+            });
+
+            addressInput.addEventListener('blur', (event) => {
+                autoFillPostalCodeFromAddress(event.target.value, { force: true });
+            });
+        }
 
         // OCR Processing
         document.getElementById('zairyu_card').addEventListener('change', (e) => processOCR(e, 'zairyu'));
@@ -1078,8 +1201,18 @@
                 }
                 
                 // Rellenar código postal si está disponible
-                if (textData.postal_code) {
-                    document.getElementById('postal_code').value = textData.postal_code;
+                const postalField = document.getElementById('postal_code');
+                if (postalField) {
+                    if (textData.postal_code) {
+                        postalField.value = formatJapanesePostalCode(textData.postal_code);
+                        postalField.dataset.manual = 'false';
+                        lastPostalLookup = {
+                            address: (textData.address || '').trim(),
+                            postal: postalField.value
+                        };
+                    } else if (textData.address) {
+                        await autoFillPostalCodeFromAddress(textData.address, { force: true });
+                    }
                 }
                 
                 // Rellenar número de tarjeta de residencia si está disponible
