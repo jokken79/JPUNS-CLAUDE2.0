@@ -1,9 +1,11 @@
-"""
-Configuration settings for UNS-ClaudeJP 2.0
-"""
-from pydantic_settings import BaseSettings
-from typing import Optional
+"""Configuration settings for UNS-ClaudeJP 2.0."""
+
+import json
 import os
+from typing import List, Optional, Union
+
+from pydantic import field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -24,7 +26,7 @@ class Settings(BaseSettings):
     
     # File Upload
     MAX_UPLOAD_SIZE: int = 10485760  # 10MB
-    ALLOWED_EXTENSIONS: list = ["pdf", "jpg", "jpeg", "png", "xlsx", "xls"]
+    ALLOWED_EXTENSIONS: Union[List[str], str] = ["pdf", "jpg", "jpeg", "png", "xlsx", "xls"]
     UPLOAD_DIR: str = "/app/uploads"
     
     # OCR Settings
@@ -89,17 +91,58 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     
     # CORS
-    BACKEND_CORS_ORIGINS: list = [
+    BACKEND_CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost",
         "http://localhost:3000",
         "http://localhost:8000",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000",
     ]
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
+
+    @field_validator("ALLOWED_EXTENSIONS", mode="before")
+    @classmethod
+    def _split_csv_values(cls, value):
+        """Support comma-separated lists in environment variables."""
+
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def _normalise_cors_origins(cls, value):
+        """Accept JSON arrays or comma-separated strings for CORS origins."""
+
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return []
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
+    @model_validator(mode="after")
+    def _finalise_lists(self):
+        """Ensure list-like settings are always lists after validation."""
+
+        self.ALLOWED_EXTENSIONS = self._coerce_to_list(self.ALLOWED_EXTENSIONS)
+        self.BACKEND_CORS_ORIGINS = self._coerce_to_list(self.BACKEND_CORS_ORIGINS)
+        return self
+
+    @staticmethod
+    def _coerce_to_list(value: Union[List[str], str]) -> List[str]:
+        if isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return []
 
 
 settings = Settings()
