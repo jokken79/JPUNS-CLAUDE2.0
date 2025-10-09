@@ -1,9 +1,11 @@
 """
 Configuration settings for UNS-ClaudeJP 2.0
 """
-from pydantic_settings import BaseSettings
-from typing import Optional
 import os
+from typing import List, Optional
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -24,7 +26,9 @@ class Settings(BaseSettings):
     
     # File Upload
     MAX_UPLOAD_SIZE: int = 10485760  # 10MB
-    ALLOWED_EXTENSIONS: list = ["pdf", "jpg", "jpeg", "png", "xlsx", "xls"]
+    ALLOWED_EXTENSIONS: List[str] | str = Field(
+        default_factory=lambda: ["pdf", "jpg", "jpeg", "png", "xlsx", "xls"]
+    )
     UPLOAD_DIR: str = "/app/uploads"
     
     # OCR Settings
@@ -89,13 +93,21 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     
     # CORS
-    BACKEND_CORS_ORIGINS: list = [
+    BACKEND_CORS_ORIGINS: List[str] | str = [
         "http://localhost",
         "http://localhost:3000",
         "http://localhost:8000",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000",
     ]
+
+    @field_validator("ALLOWED_EXTENSIONS", "BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def _split_comma_separated(cls, value):
+        """Allow providing list settings as comma separated strings."""
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
     
     class Config:
         env_file = ".env"

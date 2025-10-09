@@ -59,14 +59,12 @@ class OCRService:
 
     def _load_cache(self, key: str) -> Optional[Dict[str, Any]]:
         if key in self.cache:
-            self.cache_hits += 1
             return self.cache[key]
         cache_file = self.cache_dir / f"{key}.json"
         if cache_file.exists():
             with cache_file.open("r", encoding="utf-8") as handle:
                 data = json.load(handle)
                 self.cache[key] = data
-                self.cache_hits += 1
                 return data
         return None
 
@@ -100,7 +98,8 @@ class OCRService:
         self.total_requests += 1
         cache_key = self._hash_file(file_path)
         cached = self._load_cache(cache_key)
-        if cached:
+        if cached is not None:
+            self.cache_hits += 1
             log_ocr_operation(source="cache", document_type=document_type, cache_key=cache_key)
             return cached
 
@@ -108,6 +107,8 @@ class OCRService:
         result = await loop.run_in_executor(
             self.thread_pool, self._process_with_fallbacks, file_path, document_type, cache_key
         )
+
+        self._save_cache(cache_key, result)
 
         elapsed = time.perf_counter() - start
         self.average_processing_time = ((self.average_processing_time * (self.total_requests - 1)) + elapsed) / self.total_requests
