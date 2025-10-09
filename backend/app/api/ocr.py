@@ -1,219 +1,98 @@
-"""
-OCR API Endpoints for UNS-ClaudeJP 2.0
-All OCR processing happens in backend
-"""
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse
-import logging
-import os
+"""OCR API endpoints consolidating hybrid pipeline."""
+from __future__ import annotations
+
+import asyncio
+import base64
+import tempfile
 from pathlib import Path
-import shutil
-from app.services.ocr_service import ocr_service
+from typing import Any, Dict
+
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+
 from app.core.config import settings
+from app.core.logging import app_logger
+from app.schemas.responses import CacheStatsResponse, ErrorResponse, OCRResponse
+from app.services.ocr_service import ocr_service
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
-
 UPLOAD_DIR = Path(settings.UPLOAD_DIR) / "ocr_temp"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
-@router.post("/process")
+@router.post(
+    "/process",
+    response_model=OCRResponse,
+    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
 async def process_ocr_document(
-    file: UploadFile = File(...),
-    document_type: str = "zairyu_card"
-):
-    """
-    Process document with OCR (Gemini + Vision + Tesseract hybrid)
-    
-    Args:
-        file: Uploaded image file
-        document_type: Type of document (zairyu_card, license, etc.)
-        
-    Returns:
-        Extracted data from document
-    """
-    temp_file = None
-    
+    file: UploadFile = File(..., description="Imagen a procesar"),
+    document_type: str = Form("zairyu_card", description="Tipo de documento"),
+) -> Dict[str, Any]:
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image files are supported")
+    content = await file.read()
+    if len(content) > settings.MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=400, detail="File size exceeds limit")
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix, dir=UPLOAD_DIR)
+    temp_file.write(content)
+    temp_file.close()
     try:
-        # Validate file
-        if not file.content_type.startswith('image/'):
-            raise HTTPException(status_code=400, detail="Only image files are supported")
-        
-        # Check file size (max 10MB)
-        file_content = await file.read()
-        if len(file_content) > 10 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
-        
-        # Save file temporarily
-        file_extension = Path(file.filename).suffix
-        temp_file = UPLOAD_DIR / f"temp_{file.filename}"
-        
-        with open(temp_file, 'wb') as f:
-            f.write(file_content)
-        
-        logger.info(f"Processing OCR for file: {file.filename}, type: {document_type}")
-        
-        # Process with OCR service
-        result = ocr_service.process_document(str(temp_file), document_type)
-        
-        if not result:
-            raise HTTPException(status_code=500, detail="OCR processing failed")
-        
-        logger.info(f"OCR processing completed successfully")
-        
-        return JSONResponse(content={
-            "success": True,
-            "data": result,
-            "message": "Document processed successfully"
-        })
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error processing OCR: {e}")
-        raise HTTPException(status_code=500, detail=f"OCR processing error: {str(e)}")
+        result = await ocr_service.process_document(temp_file.name, document_type)
+        return {"success": True, "data": result, "message": "Document processed successfully"}
+    except Exception as exc:  # pragma: no cover - fallback
+        app_logger.exception("OCR processing failed", document_type=document_type)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     finally:
-        # Cleanup temporary file
-        if temp_file and temp_file.exists():
-            try:
-                temp_file.unlink()
-            except Exception as e:
-                logger.warning(f"Failed to delete temp file: {e}")
+        Path(temp_file.name).unlink(missing_ok=True)
 
 
-@router.post("/process-from-base64")
+@router.post(
+    "/process-from-base64",
+    response_model=OCRResponse,
+    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
 async def process_ocr_from_base64(
-    image_base64: str,
-    mime_type: str,
-    document_type: str = "zairyu_card"
-):
-    """
-    Process document from base64 image
-    
-    Args:
-        image_base64: Base64 encoded image
-        mime_type: MIME type of image
-        document_type: Type of document
-        
-    Returns:
-        Extracted data from document
-    """
-    import base64
-    
-    temp_file = None
-    
+    image_base64: str = Form(..., description="Imagen en base64"),
+    mime_type: str = Form(..., description="Tipo MIME"),
+    document_type: str = Form("zairyu_card"),
+) -> Dict[str, Any]:
+    if not image_base64:
+        raise HTTPException(status_code=400, detail="image_base64 is required")
     try:
-        # Decode base64
-        image_data = base64.b64decode(image_base64)
-        
-        # Save temporarily
-        extension = mime_type.split('/')[-1]
-        temp_file = UPLOAD_DIR / f"temp_{document_type}.{extension}"
-        
-        with open(temp_file, 'wb') as f:
-            f.write(image_data)
-        
-        # Process with OCR
-        result = ocr_service.process_document(str(temp_file), document_type)
-        
-        return JSONResponse(content={
-            "success": True,
-            "data": result,
-            "message": "Document processed successfully"
-        })
-        
-    except Exception as e:
-        logger.error(f"Error processing base64 OCR: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        if temp_file and temp_file.exists():
-            try:
-                temp_file.unlink()
-            except:
-                pass
+        result = await ocr_service.process_from_base64(image_base64, mime_type, document_type)
+        return {"success": True, "data": result, "message": "Document processed successfully"}
+    except Exception as exc:  # pragma: no cover
+        app_logger.exception("OCR base64 failed", document_type=document_type)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@router.get("/cache-stats")
-async def get_cache_stats():
-    """Get OCR cache statistics"""
-    try:
-        cache_dir = Path(settings.UPLOAD_DIR) / "ocr_cache"
-        
-        if not cache_dir.exists():
-            return {"total_cached": 0, "cache_size_mb": 0}
-        
-        cache_files = list(cache_dir.glob("*.json"))
-        total_size = sum(f.stat().st_size for f in cache_files)
-        
-        return {
-            "total_cached": len(cache_files),
-            "cache_size_mb": round(total_size / (1024 * 1024), 2),
-            "cache_directory": str(cache_dir)
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting cache stats: {e}")
-        return {"error": str(e)}
+@router.get("/cache/stats", response_model=CacheStatsResponse)
+async def get_cache_statistics() -> Dict[str, Any]:
+    return {"success": True, "stats": ocr_service.get_cache_stats()}
 
 
-@router.delete("/clear-cache")
-async def clear_ocr_cache():
-    """Clear OCR cache"""
-    try:
-        cache_dir = Path(settings.UPLOAD_DIR) / "ocr_cache"
-        
-        if cache_dir.exists():
-            shutil.rmtree(cache_dir)
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            
-        return {"success": True, "message": "Cache cleared successfully"}
-        
-    except Exception as e:
-        logger.error(f"Error clearing cache: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+@router.delete("/cache", response_model=Dict[str, Any])
+async def clear_ocr_cache() -> Dict[str, Any]:
+    return ocr_service.clear_cache()
 
 
-@router.post("/gemini/process", response_model=dict)
-async def process_with_gemini(file: UploadFile = File(...)):
-    """
-    Procesa imagen con Gemini API desde el backend
-    Esto protege la API key y centraliza el procesamiento OCR
-    """
-    try:
-        # Validar tipo de archivo
-        if not file.content_type.startswith('image/'):
-            raise HTTPException(status_code=400, detail="Solo se aceptan imágenes")
-        
-        # Leer archivo
-        content = await file.read()
-        
-        # Validar tamaño (máx 10MB)
-        if len(content) > 10 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="Imagen muy grande (máx 10MB)")
-        
-        # Convertir a base64
-        import base64
-        base64_image = base64.b64encode(content).decode('utf-8')
-        
-        # Procesar con Gemini
-        logger.info(f"Processing image with Gemini: {file.filename}")
-        result = ocr_service.extract_text_with_gemini_api_from_base64(
-            base64_image=base64_image,
-            mime_type=file.content_type
-        )
-        
-        if not result:
-            raise HTTPException(status_code=500, detail="OCR falló")
-        
-        logger.info("OCR successful")
-        return {
-            "success": True,
-            "data": result
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error processing OCR: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+@router.post("/warm-up")
+async def warm_up_ocr_service(background_tasks: BackgroundTasks) -> Dict[str, Any]:
+    def _warm_up() -> None:
+        try:
+            app_logger.info("OCR warm-up started")
+            # Create tiny blank image for pipeline warm-up
+            import io
+            from PIL import Image
+
+            image = Image.new("RGB", (10, 10), color="white")
+            buffer = io.BytesIO()
+            image.save(buffer, format="PNG")
+            encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            asyncio.run(ocr_service.process_from_base64(encoded, "image/png", "warmup"))
+            app_logger.info("OCR warm-up completed")
+        except Exception as exc:  # pragma: no cover
+            app_logger.warning("Warm up failed", error=str(exc))
+
+    background_tasks.add_task(_warm_up)
+    return {"success": True, "message": "OCR warm-up started"}

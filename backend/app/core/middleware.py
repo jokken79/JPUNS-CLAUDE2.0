@@ -1,62 +1,69 @@
-"""
-Middleware para UNS-ClaudeJP 2.0
-"""
-import logging
+"""Custom middlewares for logging, security and exception handling."""
+from __future__ import annotations
+
 import time
-from typing import Callable
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.middleware.base import RequestResponseEndpoint
+from fastapi import HTTPException, Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 from app.core.exceptions import UNSException, http_exception_from_uns
-
-logger = logging.getLogger(__name__)
+from app.core.logging import app_logger, log_performance_metric, log_security_event
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
-    """Middleware para logging de peticiones"""
-    
+    """Attach structured logging to each request."""
+
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        start_time = time.time()
-        
-        # Log de petición
-        logger.info(f"Request: {request.method} {request.url}")
-        
-        # Procesar petición
+        start = time.perf_counter()
+        route = request.url.path
+        method = request.method
+        client = request.client.host if request.client else "unknown"
+
+        app_logger.bind(route=route, method=method, client=client).info("request.started")
+
         response = await call_next(request)
-        
-        # Calcular tiempo de procesamiento
-        process_time = time.time() - start_time
-        
-        # Log de respuesta
-        logger.info(
-            f"Response: {response.status_code} - Time: {process_time:.4f}s"
-        )
-        
-        # Añadir header de tiempo de procesamiento
-        response.headers["X-Process-Time"] = str(process_time)
-        
+
+        elapsed = time.perf_counter() - start
+        response.headers["X-Process-Time"] = f"{elapsed:.4f}"
+
+        log_performance_metric("request_duration", elapsed, route=route, status=response.status_code)
+        app_logger.bind(route=route, method=method, status=response.status_code).info("request.finished")
+        return response
+
+
+class SecurityMiddleware(BaseHTTPMiddleware):
+    """Add common security headers and detect suspicious behaviour."""
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        response = await call_next(request)
+
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("X-XSS-Protection", "1; mode=block")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+
+        if request.headers.get("User-Agent") in {None, "", "curl", "python-requests/2.x"}:
+            log_security_event(message="Suspicious user agent", user_agent=request.headers.get("User-Agent"))
+
         return response
 
 
 class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
-    """Middleware para manejo centralizado de excepciones"""
-    
+    """Convert internal exceptions into JSON responses."""
+
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         try:
             return await call_next(request)
         except UNSException as exc:
-            # Convertir excepción UNS a HTTPException
-            http_exc = http_exception_from_uns(exc)
-            logger.error(f"UNS Exception: {exc.message} - Details: {exc.details}")
-            raise http_exc
-        except Exception as exc:
-            # Capturar excepciones no controladas
-            logger.exception(f"Unhandled exception: {str(exc)}")
+            app_logger.bind(route=request.url.path, type="uns").error(exc.message)
+            raise http_exception_from_uns(exc)
+        except HTTPException:
+            raise
+        except Exception as exc:  # pragma: no cover - defensive programming
+            app_logger.bind(route=request.url.path, type="unhandled").exception("Unhandled exception")
             raise HTTPException(
                 status_code=500,
                 detail={"message": "Internal server error", "details": str(exc)}
             )
 
 
-from fastapi import HTTPException
+__all__ = ["LoggingMiddleware", "SecurityMiddleware", "ExceptionHandlerMiddleware"]

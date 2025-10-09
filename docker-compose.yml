@@ -88,7 +88,7 @@ services:
     restart: always
     environment:
       REACT_APP_API_URL: http://localhost:8000
-      REACT_APP_NAME: UNS-ClaudeJP 1.0
+      REACT_APP_NAME: UNS-ClaudeJP 2.0
       REACT_APP_COMPANY: UNS企画
       REACT_APP_LANGUAGE: ja
     volumes:
