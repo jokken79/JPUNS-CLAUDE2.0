@@ -751,10 +751,9 @@
             API_BASE_URL: window.location.origin.replace(/:\d+$/, ':8000'),
             DEBUG_MODE: false,
             OCR_ENDPOINTS: [
-                '/api/ocr-fixed/process',
-                '/api/ocr-fixed/gemini/process',
-                '/api/ocr/gemini/process',
-                '/api/ocr/process'
+                '/api/candidates/ocr/process',
+                '/api/ocr/process',
+                '/api/ocr/process-from-base64'
             ]
         };
         
@@ -1567,21 +1566,22 @@
                 
                 // Crear FormData
                 const formData = new FormData();
+                const documentType = type === 'license' ? 'license' : 'zairyu_card';
+
                 formData.append('file', blob, 'document.jpg');
-                
+                formData.append('document_type', documentType);  // Agregar document_type al FormData
+
                 // Usar el endpoint específico según el índice
                 const endpoint = CONFIG.OCR_ENDPOINTS[endpointIndex];
-                logDebug(`Enviando imagen al backend: ${endpoint}`);
-                
+                logDebug(`Enviando imagen al backend: ${endpoint} con document_type=${documentType}`);
+
                 // Añadir timeout para evitar que se quede colgado
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos timeout
-                
-                const documentType = type === 'license' ? 'license' : 'zairyu_card';
-                const endpointUrl = new URL(`${CONFIG.API_BASE_URL}${endpoint}`);
-                endpointUrl.searchParams.set('document_type', documentType);
 
-                const apiResponse = await fetch(endpointUrl.toString(), {
+                const endpointUrl = `${CONFIG.API_BASE_URL}${endpoint}`;
+
+                const apiResponse = await fetch(endpointUrl, {
                     method: 'POST',
                     body: formData,
                     signal: controller.signal
@@ -1700,15 +1700,15 @@
                 ocr_note: document.getElementById('ocr_note').value,
                 visa_type: document.getElementById('visa_type').value,
                 visa_period: document.getElementById('visa_period').value,
-                visa_expiry: document.getElementById('visa_expiry').value,
-                residence_card_no: document.getElementById('residence_card_no').value,
-                passport_no: document.getElementById('passport_no').value,
+                residence_expiry: document.getElementById('visa_expiry').value,
+                residence_card_number: document.getElementById('residence_card_no').value,
+                passport_number: document.getElementById('passport_no').value,
                 passport_expiry: document.getElementById('passport_expiry').value,
-                license_no: document.getElementById('license_no').value,
+                license_number: document.getElementById('license_no').value,
                 license_type: document.getElementById('license_type').value,
                 license_expiry: document.getElementById('license_expiry').value,
-                car_owner: document.querySelector('input[name="car_owner"]:checked')?.value || '',
-                insurance: document.querySelector('input[name="insurance"]:checked')?.value || '',
+                car_ownership: document.querySelector('input[name="car_owner"]:checked')?.value || '',
+                voluntary_insurance: document.querySelector('input[name="insurance"]:checked')?.value || '',
                 speak_level: document.getElementById('speak_level').value,
                 listen_level: document.getElementById('listen_level').value,
                 kanji_level: document.getElementById('kanji_level').value,
@@ -2008,17 +2008,51 @@
             `;
         }
 
+        // Map form data to backend schema
+        function mapFormDataToBackendSchema(formData) {
+            return {
+                full_name_kanji: formData.name_kanji,
+                full_name_kana: formData.name_furigana,
+                date_of_birth: formData.birthday || null,
+                gender: formData.gender,
+                nationality: formData.nationality,
+                postal_code: formData.postal_code,
+                current_address: formData.address,
+                mobile: formData.mobile,
+                phone: formData.phone,
+                residence_status: formData.visa_type,
+                residence_expiry: formData.visa_expiry || null,
+                residence_card_number: formData.residence_card_no,
+                passport_number: formData.passport_no,
+                passport_expiry: formData.passport_expiry || null,
+                license_number: formData.license_no,
+                license_expiry: formData.license_expiry || null,
+                car_ownership: formData.car_owner,
+                voluntary_insurance: formData.insurance,
+                major: formData.major,
+                commute_time_oneway: formData.commute_time ? parseInt(formData.commute_time) : null,
+                // Convert dates from string to proper format if needed
+                ...(formData.birthday && formData.birthday !== '0000-00-00' ? { date_of_birth: formData.birthday } : {}),
+                ...(formData.visa_expiry && formData.visa_expiry !== '0000-00-00' ? { residence_expiry: formData.visa_expiry } : {}),
+                ...(formData.passport_expiry && formData.passport_expiry !== '0000-00-00' ? { passport_expiry: formData.passport_expiry } : {}),
+                ...(formData.license_expiry && formData.license_expiry !== '0000-00-00' ? { license_expiry: formData.license_expiry } : {})
+            };
+        }
+
         // Save Data
         async function saveData() {
-            const data = collectFormData();
+            const formData = collectFormData();
+            const mappedData = mapFormDataToBackendSchema(formData);
 
             try {
-                const response = await fetch(`${CONFIG.API_BASE_URL}/submit`, {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${CONFIG.API_BASE_URL}/api/candidates/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
                     },
-                    body: JSON.stringify(data),
+                    body: JSON.stringify(mappedData),
                 });
 
                 const result = await response.json();

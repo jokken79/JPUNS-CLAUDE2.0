@@ -122,7 +122,7 @@ from app.api import (  # noqa: E402  pylint: disable=wrong-import-position
     import_export,
     monitoring,
     notifications,
-    ocr,
+    ocr_simple,
     reports,
     requests,
     salary,
@@ -137,7 +137,7 @@ app.include_router(timer_cards.router, prefix="/api/timer-cards", tags=["Timer C
 app.include_router(salary.router, prefix="/api/salary", tags=["Salary"])
 app.include_router(requests.router, prefix="/api/requests", tags=["Requests"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
-app.include_router(ocr.router, prefix="/api/ocr", tags=["OCR"])
+app.include_router(ocr_simple.router, prefix="/api/ocr", tags=["OCR"])
 app.include_router(import_export.router, prefix="/api/import", tags=["Import/Export"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])

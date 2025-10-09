@@ -285,66 +285,106 @@ const Employees: React.FC = () => {
     );
   }
 
+  const activeCount = employees.filter(e => e.is_active).length;
+  const inactiveCount = employees.filter(e => !e.is_active).length;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold opacity-90">総従業員数</h3>
+            <svg className="w-8 h-8 opacity-80" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+            </svg>
+          </div>
+          <p className="text-4xl font-black">{total}</p>
+          <p className="text-xs opacity-75 mt-1">登録済みデータベース</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold opacity-90">在籍中</h3>
+            <svg className="w-8 h-8 opacity-80" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <p className="text-4xl font-black">{activeCount}</p>
+          <p className="text-xs opacity-75 mt-1">アクティブ従業員</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-gray-500 to-slate-600 rounded-2xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold opacity-90">退社済</h3>
+            <svg className="w-8 h-8 opacity-80" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <p className="text-4xl font-black">{inactiveCount}</p>
+          <p className="text-xs opacity-75 mt-1">非アクティブ</p>
+        </div>
+      </div>
+
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">従業員管理</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-3xl font-black text-gray-900">従業員管理</h1>
+          <p className="mt-1 text-sm text-gray-600">
             全{total}名の従業員を管理
           </p>
         </div>
         <button
           onClick={() => navigate('/employees/new')}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all duration-300 hover:scale-105"
         >
-          <UserPlusIcon className="h-5 w-5 mr-2" />
+          <UserPlusIcon className="h-5 w-5" />
           新規登録
         </button>
       </div>
 
       {/* Filters */}
-      <div className="bg-white shadow rounded-lg p-4">
+      <div className="bg-white/80 backdrop-blur rounded-2xl border border-gray-200 p-4 shadow-sm">
         <form onSubmit={handleSearch} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Search */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 検索
               </label>
               <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="氏名または社員番号で検索..."
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="block w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                 />
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-                </div>
               </div>
             </div>
 
             {/* Status Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 在籍状況
               </label>
-              <select
-                value={filterActive === null ? '' : filterActive.toString()}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setFilterActive(value === '' ? null : value === 'true');
-                  setCurrentPage(1);
-                }}
-                className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              >
-                <option value="">全て</option>
-                <option value="true">在籍中</option>
-                <option value="false">退社済</option>
-              </select>
+              <div className="relative">
+                <FunnelIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+                <select
+                  value={filterActive === null ? '' : filterActive.toString()}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFilterActive(value === '' ? null : value === 'true');
+                    setCurrentPage(1);
+                  }}
+                  className="block w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition appearance-none"
+                >
+                  <option value="">全て</option>
+                  <option value="true">在籍中</option>
+                  <option value="false">退社済</option>
+                </select>
+              </div>
             </div>
 
             {/* Factory Filter */}

@@ -33,6 +33,7 @@ const Layout: React.FC = () => {
   const navigation: NavigationItem[] = [
     { key: 'dashboard', name: 'ダッシュボード', href: '/dashboard', icon: HomeIcon },
     { key: 'candidates', name: '履歴書管理', href: '/candidates', icon: UserPlusIcon },
+    { key: 'pendingApproval', name: '承認待ち', href: '/pending-approval', icon: ClockIcon },
     { key: 'employees', name: '従業員管理', href: '/employees', icon: UserGroupIcon },
     {
       key: 'employeesExtended',
@@ -103,20 +104,20 @@ const Layout: React.FC = () => {
       </nav>
 
       {/* Sidebar & Main */}
-      <div className="relative z-10 flex pt-28">
+      <div className="relative z-10 flex pt-24">
         <div
-          className={`${sidebarOpen ? 'w-72' : 'w-0'} transition-all duration-500 ease-in-out`}
+          className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-500 ease-in-out`}
         >
           <aside
-            className={`pointer-events-auto fixed top-24 bottom-8 left-4 right-auto z-30 flex h-[calc(100vh-7.5rem)] w-72 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/80 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+            className={`pointer-events-auto fixed top-24 bottom-4 left-4 right-auto z-30 flex h-[calc(100vh-7rem)] w-64 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/80 p-3 shadow-2xl shadow-slate-900/10 backdrop-blur transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
               sidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-[120%] opacity-0'
-            } sm:left-6 lg:left-10`}
+            } sm:left-4 lg:left-6`}
           >
             <div className="flex items-center justify-between pb-4">
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Navigation</p>
               <span className="rounded-full bg-slate-900/5 px-3 py-1 text-[0.65rem] font-semibold text-slate-500">HR Suite</span>
             </div>
-            <nav className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
+            <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
               {navigation.map((item) => {
                 const isActive =
                   location.pathname === item.href || location.pathname.startsWith(item.href + '/');
@@ -126,10 +127,10 @@ const Layout: React.FC = () => {
                   <div
                     key={item.key}
                     className={clsx(
-                      'group relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-300',
+                      'group relative flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-300',
                       isVisible
                         ? isActive
-                          ? 'bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-indigo-500/15 text-indigo-600 shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-200/60'
+                          ? 'bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-indigo-500/15 text-indigo-600 shadow-md shadow-indigo-500/10 ring-1 ring-indigo-200/60'
                           : 'text-slate-600 hover:bg-white/70 hover:text-slate-900 hover:shadow-sm'
                         : 'border border-dashed border-amber-200/60 bg-amber-50/70 text-amber-700/80 shadow-none'
                     )}
@@ -143,11 +144,11 @@ const Layout: React.FC = () => {
                       }}
                       aria-disabled={!isVisible}
                       tabIndex={isVisible ? 0 : -1}
-                      className="flex flex-1 items-center gap-3 focus:outline-none"
+                      className="flex flex-1 items-center gap-2.5 min-w-0 focus:outline-none"
                     >
                       <span
                         className={clsx(
-                          'flex h-10 w-10 items-center justify-center rounded-xl border transition',
+                          'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border transition',
                           isVisible
                             ? isActive
                               ? 'border-indigo-300 bg-white text-indigo-500'
@@ -157,36 +158,29 @@ const Layout: React.FC = () => {
                       >
                         <item.icon className="h-5 w-5" />
                       </span>
-                      <span className="truncate">{item.name}</span>
-                      {!isVisible && (
-                        <span className="ml-2 rounded-full bg-white/80 px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.3em] text-amber-600">
-                          En construcción
-                        </span>
-                      )}
+                      <span className="truncate text-sm">{item.name}</span>
                     </Link>
                     <Switch
                       checked={isVisible}
                       onChange={() => togglePage(item.key)}
                       className={clsx(
-                        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border transition focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-1 focus:ring-offset-white',
+                        'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 focus:ring-offset-white',
                         isVisible
-                          ? 'border-indigo-200 bg-indigo-500/80'
-                          : 'border-amber-200 bg-amber-200/70'
+                          ? 'border-indigo-300 bg-indigo-500'
+                          : 'border-gray-300 bg-gray-200'
                       )}
                     >
                       <span className="sr-only">Cambiar visibilidad de {item.name}</span>
                       <span
                         aria-hidden="true"
                         className={clsx(
-                          'inline-block h-5 w-5 transform rounded-full bg-white transition',
-                          isVisible
-                            ? 'translate-x-5 shadow shadow-indigo-500/20'
-                            : 'translate-x-1 shadow shadow-amber-500/20'
+                          'inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition-transform duration-200 ease-in-out',
+                          isVisible ? 'translate-x-4' : 'translate-x-0'
                         )}
                       />
                     </Switch>
                     {isActive && isVisible && (
-                      <span className="absolute inset-y-1 left-1 w-1 rounded-full bg-indigo-500" aria-hidden="true" />
+                      <span className="absolute inset-y-1 left-0.5 w-1 rounded-full bg-indigo-500" aria-hidden="true" />
                     )}
                   </div>
                 );
@@ -199,11 +193,11 @@ const Layout: React.FC = () => {
         </div>
 
         <main
-          className={`flex-1 px-4 pb-12 transition-all duration-500 sm:px-6 lg:px-10 ${
-            sidebarOpen ? 'md:ml-[19rem]' : 'md:ml-20'
+          className={`flex-1 px-4 pb-8 transition-all duration-500 sm:px-6 lg:px-8 ${
+            sidebarOpen ? 'md:ml-72' : 'md:ml-0'
           }`}
         >
-          <div className="mx-auto w-full max-w-7xl space-y-10">
+          <div className="mx-auto w-full max-w-7xl space-y-4">
             <Outlet />
           </div>
         </main>

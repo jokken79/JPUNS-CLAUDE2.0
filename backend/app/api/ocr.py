@@ -19,6 +19,18 @@ UPLOAD_DIR = Path(settings.UPLOAD_DIR) / "ocr_temp"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
+@router.options("/process")
+async def process_options():
+    """Handle OPTIONS request for CORS preflight."""
+    return {"success": True}
+
+
+@router.options("/process-from-base64")
+async def process_base64_options():
+    """Handle OPTIONS request for CORS preflight."""
+    return {"success": True}
+
+
 @router.post(
     "/process",
     response_model=OCRResponse,

@@ -402,6 +402,12 @@ async def reject_candidate(
     return candidate
 
 
+@router.options("/ocr/process")
+async def ocr_process_options():
+    """Handle OPTIONS request for CORS preflight."""
+    return {"success": True}
+
+
 @router.post("/ocr/process")
 async def process_ocr_document(
     file: UploadFile = File(...),

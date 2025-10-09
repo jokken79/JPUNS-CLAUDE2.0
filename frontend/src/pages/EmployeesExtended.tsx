@@ -7,7 +7,10 @@ import {
   PencilIcon,
   EyeIcon,
   PhotoIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
+import VisaAlert from '../components/VisaAlert';
+import ColumnSelector from '../components/ColumnSelector';
 
 interface Employee {
   id: number;

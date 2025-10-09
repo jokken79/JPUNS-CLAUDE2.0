@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 export type PageKey =
   | 'dashboard'
   | 'candidates'
+  | 'pendingApproval'
   | 'employees'
   | 'employeesExtended'
   | 'importData'
@@ -25,6 +26,7 @@ const STORAGE_KEY = 'page-visibility-settings';
 const DEFAULT_VISIBILITY: PageVisibilityState = {
   dashboard: true,
   candidates: true,
+  pendingApproval: true,
   employees: true,
   employeesExtended: true,
   importData: true,

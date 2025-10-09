@@ -15,10 +15,10 @@ from app.core.database import Base
 # ============================================
 
 class UserRole(str, enum.Enum):
-    SUPER_ADMIN = "SUPER_ADMIN"
     ADMIN = "ADMIN"
-    COORDINATOR = "COORDINATOR"
-    EMPLOYEE = "EMPLOYEE"
+    KANRININSHA = "KANRININSHA"  # Staff - Office/HR personnel
+    EMPLOYEE = "EMPLOYEE"  # 派遣元社員 - Dispatch workers
+    CONTRACT_WORKER = "CONTRACT_WORKER"  # 請負 - Contract workers
 
 
 class CandidateStatus(str, enum.Enum):
@@ -306,6 +306,7 @@ class Factory(Base):
 
     # Relationships
     employees = relationship("Employee", back_populates="factory")
+    contract_workers = relationship("ContractWorker", back_populates="factory")
 
 
 class Apartment(Base):
@@ -322,6 +323,7 @@ class Apartment(Base):
 
     # Relationships
     employees = relationship("Employee", back_populates="apartment")
+    contract_workers = relationship("ContractWorker", back_populates="apartment")
 
 
 class Employee(Base):
@@ -351,13 +353,21 @@ class Employee(Base):
     emergency_phone = Column(String(20))
 
     # Employment information
-    hire_date = Column(Date)
+    hire_date = Column(Date)  # 入社日
+    current_hire_date = Column(Date)  # 現入社 - Fecha de entrada a fábrica actual
     jikyu = Column(Integer, nullable=False)  # 時給
+    jikyu_revision_date = Column(Date)  # 時給改定 - Fecha de revisión de salario
     position = Column(String(100))
     contract_type = Column(String(50))
 
+    # Assignment information
+    assignment_location = Column(String(200))  # 配属先 - Ubicación de asignación
+    assignment_line = Column(String(200))  # 配属ライン - Línea de asignación
+    job_description = Column(Text)  # 仕事内容 - Descripción del trabajo
+
     # Financial information
     hourly_rate_charged = Column(Integer)  # 請求単価
+    billing_revision_date = Column(Date)  # 請求改定 - Fecha de revisión de facturación
     profit_difference = Column(Integer)    # 差額利益
     standard_compensation = Column(Integer)  # 標準報酬
     health_insurance = Column(Integer)     # 健康保険
@@ -405,6 +415,143 @@ class Employee(Base):
     salary_calculations = relationship("SalaryCalculation", back_populates="employee")
     requests = relationship("Request", back_populates="employee")
     contracts = relationship("Contract", back_populates="employee")
+
+
+class ContractWorker(Base):
+    """請負社員 (Ukeoi) - Contract Workers Table"""
+    __tablename__ = "contract_workers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    hakenmoto_id = Column(Integer, unique=True, nullable=False, index=True)
+    rirekisho_id = Column(String(20), ForeignKey("candidates.rirekisho_id"))
+    factory_id = Column(String(20), ForeignKey("factories.factory_id"))
+    hakensaki_shain_id = Column(String(50))
+
+    # Personal information
+    full_name_kanji = Column(String(100), nullable=False)
+    full_name_kana = Column(String(100))
+    photo_url = Column(String(255))
+    date_of_birth = Column(Date)
+    gender = Column(String(10))
+    nationality = Column(String(50))
+    zairyu_card_number = Column(String(50))
+    zairyu_expire_date = Column(Date)
+
+    # Contact information
+    address = Column(Text)
+    phone = Column(String(20))
+    email = Column(String(100))
+    emergency_contact = Column(String(100))
+    emergency_phone = Column(String(20))
+
+    # Employment information
+    hire_date = Column(Date)  # 入社日
+    current_hire_date = Column(Date)  # 現入社 - Fecha de entrada a fábrica actual
+    jikyu = Column(Integer, nullable=False)  # 時給
+    jikyu_revision_date = Column(Date)  # 時給改定 - Fecha de revisión de salario
+    position = Column(String(100))
+    contract_type = Column(String(50))
+
+    # Assignment information
+    assignment_location = Column(String(200))  # 配属先 - Ubicación de asignación
+    assignment_line = Column(String(200))  # 配属ライン - Línea de asignación
+    job_description = Column(Text)  # 仕事内容 - Descripción del trabajo
+
+    # Financial information
+    hourly_rate_charged = Column(Integer)  # 請求単価
+    billing_revision_date = Column(Date)  # 請求改定 - Fecha de revisión de facturación
+    profit_difference = Column(Integer)
+    standard_compensation = Column(Integer)
+    health_insurance = Column(Integer)
+    nursing_insurance = Column(Integer)
+    pension_insurance = Column(Integer)
+    social_insurance_date = Column(Date)
+
+    # Visa and documents
+    visa_type = Column(String(50))
+    license_type = Column(String(100))
+    license_expire_date = Column(Date)
+    commute_method = Column(String(50))
+    optional_insurance_expire = Column(Date)
+    japanese_level = Column(String(50))
+    career_up_5years = Column(Boolean, default=False)
+    entry_request_date = Column(Date)
+    notes = Column(Text)
+    postal_code = Column(String(10))
+
+    # Apartment
+    apartment_id = Column(Integer, ForeignKey("apartments.id"))
+    apartment_start_date = Column(Date)
+    apartment_move_out_date = Column(Date)
+    apartment_rent = Column(Integer)
+
+    # Yukyu (有給休暇)
+    yukyu_total = Column(Integer, default=0)
+    yukyu_used = Column(Integer, default=0)
+    yukyu_remaining = Column(Integer, default=0)
+
+    # Status
+    is_active = Column(Boolean, default=True)
+    termination_date = Column(Date)
+    termination_reason = Column(Text)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    factory = relationship("Factory", back_populates="contract_workers")
+    apartment = relationship("Apartment", back_populates="contract_workers")
+
+
+class Staff(Base):
+    """スタッフ (Staff) - Office/HR Personnel Table (Kanrininsha)"""
+    __tablename__ = "staff"
+
+    id = Column(Integer, primary_key=True, index=True)
+    staff_id = Column(Integer, unique=True, nullable=False, index=True)
+    rirekisho_id = Column(String(20), ForeignKey("candidates.rirekisho_id"))
+
+    # Personal information
+    full_name_kanji = Column(String(100), nullable=False)
+    full_name_kana = Column(String(100))
+    photo_url = Column(String(255))
+    date_of_birth = Column(Date)
+    gender = Column(String(10))
+    nationality = Column(String(50))
+
+    # Contact information
+    address = Column(Text)
+    phone = Column(String(20))
+    email = Column(String(100))
+    emergency_contact = Column(String(100))
+    emergency_phone = Column(String(20))
+    postal_code = Column(String(10))
+
+    # Employment information
+    hire_date = Column(Date)
+    position = Column(String(100))
+    department = Column(String(100))
+    monthly_salary = Column(Integer)  # Fixed monthly salary instead of hourly
+
+    # Social insurance
+    health_insurance = Column(Integer)
+    nursing_insurance = Column(Integer)
+    pension_insurance = Column(Integer)
+    social_insurance_date = Column(Date)
+
+    # Yukyu (有給休暇)
+    yukyu_total = Column(Integer, default=0)
+    yukyu_used = Column(Integer, default=0)
+    yukyu_remaining = Column(Integer, default=0)
+
+    # Status
+    is_active = Column(Boolean, default=True)
+    termination_date = Column(Date)
+    termination_reason = Column(Text)
+    notes = Column(Text)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
 class TimerCard(Base):

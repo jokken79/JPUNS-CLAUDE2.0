@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Candidates from './pages/Candidates';
+import PendingApproval from './pages/PendingApproval';
 import CandidateForm from './pages/CandidateForm';
 import Employees from './pages/Employees';
 import EmployeesExtended from './pages/EmployeesExtended';
@@ -98,6 +99,14 @@ function App() {
             element={(
               <VisibilityGuard pageKey="candidates">
                 <CandidateForm />
+              </VisibilityGuard>
+            )}
+          />
+          <Route
+            path="pending-approval"
+            element={(
+              <VisibilityGuard pageKey="pendingApproval">
+                <PendingApproval />
               </VisibilityGuard>
             )}
           />
