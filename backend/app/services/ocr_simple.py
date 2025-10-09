@@ -35,7 +35,7 @@ elif not genai:
         "google-generativeai not installed; SimpleOCRService will operate in offline stub mode."
     )
 else:  # pragma: no cover - configuration error should be visible in logs
-    logger.warning("GEMINI_API_KEY not found; SimpleOCRService running in offline stub mode")
+    logger.warning("Required configuration not found; SimpleOCRService running in offline stub mode")
 
 
 def _build_prompt(example: Dict[str, str], instructions: str) -> str:
