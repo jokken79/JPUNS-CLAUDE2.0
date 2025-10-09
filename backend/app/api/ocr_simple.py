@@ -66,10 +66,9 @@ async def process_ocr(
         logger.info(f"File read successfully, size: {len(content)} bytes")
 
         # Save to temporary file
-        file_extension = Path(file.filename).suffix if file.filename else '.jpg'
         temp_file = tempfile.NamedTemporaryFile(
             delete=False,
-            suffix=file_extension,
+            suffix=".tmp",
             dir=UPLOAD_DIR
         )
         temp_file.write(content)
